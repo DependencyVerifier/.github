@@ -771,6 +771,7 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
   Le Domain ne dépend que de lui-même et de `Shared\Domain`. L'Application ne dépend que du Domain et des ports. Un contexte métier n'importe jamais un autre contexte métier. Ces règles sont vérifiées par un test d'architecture.
 - **CQRS** sur 3 bus Messenger : `command.bus` (transactionnel), `query.bus` et `event.bus`, comme dans les autres projets de l'auteur.
 - **Qualité** : PHPStan niveau max, php-cs-fixer, Rector, PHPUnit, Infection (100 % de MSI sur Domain et Application). Tout passe par un Makefile (`make qa`).
+- **Front-end en TypeScript strict uniquement** : aucun fichier `.js` dans `assets/`, vérifié par `make typecheck`. **Pas de Mercure**, le projet n'a pas besoin de hub temps réel. Les **migrations Doctrine sont rangées par année** (`migrations/<AAAA>/`).
 - **Healthcheck** : `GET /_healthcheck`. La page vient de Romain-MILLAN-Healthcheck, adaptée pour ne charger aucune ressource externe. Elle exécute des sondes (base de données…), renvoie 503 en JSON si une dépendance tombe et sert de healthcheck au conteneur.
 - **Signature** : le footer affiche le tag Romain MILLAN, intégré en submodule git (`console/assets/romain-millan-tag`).
 - **Domaine local de développement** : `https://console.depradar.localhost`.
