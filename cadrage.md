@@ -746,6 +746,15 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
 
 **Console : Symfony** (dernière stable 8.x) + **PHP 8.5** + **PostgreSQL**.
 
+- **PostgreSQL retenu plutôt que MariaDB**, malgré l'homogénéité avec les autres projets de l'auteur. Les raisons :
+  - index uniques partiels pour les règles « unique si actif » (finding ouvert, jetons et agents actifs) ;
+  - DDL transactionnel dans les migrations ;
+  - partitionnement compatible avec les clés étrangères (`snapshot`, `audit_log`) ;
+  - JSONB indexable pour les SBOM et les faits ;
+  - `LISTEN/NOTIFY` pour le transport Messenger.
+
+  En dev, Adminer et `make db-dump` / `db-import` remplacent phpMyAdmin et les scripts MariaDB.
+
 - C'est une stack maîtrisée, ce qui permet la vélocité et la maintenance.
 - Base du projet : template **`dunglas/symfony-docker`** (FrankenPHP + Caddy, Dockerfile multi-stage dev/prod).
 - **Architecture DDD** : un bounded context par namespace racine, chacun découpé en couches `src/<Contexte>/{Domain,Application,Infrastructure,UI}` :
