@@ -2,6 +2,7 @@
 
 > UI charter for the console. Source of truth for layout, tokens and components.
 > Decisions behind it: `docs/cadrage.md` §3 ("Design de la console") and §9.
+> **Full design system** (brand book, every token per theme, 20 components with live previews and usage rules, fonts, icons, signature): https://claude.ai/artifact/5kntDaEcezCeUewSM4cUjj. It was built from this repository; keep its `tokens.json` and `console/assets/styles/app.css` in sync when a value changes.
 
 ## 1. Principles
 
