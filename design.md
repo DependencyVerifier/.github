@@ -72,6 +72,7 @@ Radius: medium (`--radius` ≈ 0.5rem). Shadows: almost none; separation by bord
 - **Two columns** on wide screens: main content + narrow side panel of key facts.
 - **Dialogs** for creation forms (two-column fields when it helps), footer with Cancel + primary action.
 - **Empty states**: one sentence + primary action ("No project yet." / "Add project").
+- **Footer** (`AppFooter`, every layout): copyright on the left, "Made by" + the Romain MILLAN tag on the right (Romain-MILLAN-Tag git submodule, muted color in both themes).
 
 ## 6. Authentication screens
 

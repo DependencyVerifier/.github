@@ -2,7 +2,7 @@
 
 > Nom du projet : **DepRadar**. Identifiant technique `depradar` : console `depradar`, agent `depradar-agent`, image `ghcr.io/depradar/agent`, préfixe des labels Docker `dev.depradar.*`.
 > Document de cadrage destiné à servir de contexte de travail (humain ou IA) pour la conception et le développement.
-> Auteur : Romain Millan — dernière mise à jour : 08/11/2026 (ajout : authentification par passkey, design de la console).
+> Auteur : Romain Millan — dernière mise à jour : 08/11/2026 (ajouts : authentification par passkey, design de la console, architecture DDD, healthcheck).
 
 ---
 
@@ -748,6 +748,23 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
 
 - C'est une stack maîtrisée, ce qui permet la vélocité et la maintenance.
 - Base du projet : template **`dunglas/symfony-docker`** (FrankenPHP + Caddy, Dockerfile multi-stage dev/prod).
+- **Architecture DDD** : un bounded context par namespace racine, chacun découpé en couches `src/<Contexte>/{Domain,Application,Infrastructure,UI}` :
+  - `Shared` (noyau technique, bus, healthcheck, coquille web) ;
+  - `Identity` (comptes, authentification, invitations) ;
+  - `Organization` (équipes, quotas, projets, environnements, droits) ;
+  - `Fleet` (hôtes, agents, enrôlement, ordres, API agent) ;
+  - `Inventory` (sources, snapshots, composants, AppInstances, images) ;
+  - `Vulnerability` (advisories, fins de vie, synchronisation des sources) ;
+  - `Exposure` (matching, findings, acceptations de risque) ;
+  - `Notification` ;
+  - `Audit`.
+
+  Le Domain ne dépend que de lui-même et de `Shared\Domain`. L'Application ne dépend que du Domain et des ports. Un contexte métier n'importe jamais un autre contexte métier. Ces règles sont vérifiées par un test d'architecture.
+- **CQRS** sur 3 bus Messenger : `command.bus` (transactionnel), `query.bus` et `event.bus`, comme dans les autres projets de l'auteur.
+- **Qualité** : PHPStan niveau max, php-cs-fixer, Rector, PHPUnit, Infection (100 % de MSI sur Domain et Application). Tout passe par un Makefile (`make qa`).
+- **Healthcheck** : `GET /_healthcheck`. La page vient de Romain-MILLAN-Healthcheck, adaptée pour ne charger aucune ressource externe. Elle exécute des sondes (base de données…), renvoie 503 en JSON si une dépendance tombe et sert de healthcheck au conteneur.
+- **Signature** : le footer affiche le tag Romain MILLAN, intégré en submodule git (`console/assets/romain-millan-tag`).
+- **Domaine local de développement** : `https://console.depradar.localhost`.
 - **Messenger** (transport Doctrine, sans Redis requis) et **Scheduler** pour les synchros et le matching. **Notifier** pour les canaux. **Security** (voters) pour le cloisonnement.
 - `composer/semver` est natif pour Composer. Il existe des implémentations PHP de semver npm. La comparaison dpkg/rpm est à implémenter ou à porter.
 - Front : **Twig + Symfony UX (Turbo, Stimulus, Twig Components, Live Components)** pour un seul déployable simple à auto-héberger.
