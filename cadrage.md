@@ -1,6 +1,6 @@
 # DependencyVerifier — Surveillance des dépendances et CVE par agent
 
-> Nom du projet : **DependencyVerifier** (anciennement « DepRadar », abandonné car déjà pris). Identifiant technique court `depverify` : console `depverify`, agent `depverify-agent`, image `ghcr.io/depverify/agent`, préfixe des labels Docker `dev.depverify.*`, console locale `https://console.depverify.localhost`.
+> Nom du projet : **DependencyVerifier** (anciennement « DepRadar », abandonné car déjà pris). Identifiant technique court `depverify` : console `depverify`, agent `depverify-agent`, image `ghcr.io/dependencyverifier/agent`, organisation GitHub `DependencyVerifier` (dépôts `console`, `agent`, `agent-image`), préfixe des labels Docker `dev.depverify.*`, console locale `https://console.depverify.localhost`.
 > Document de cadrage destiné à servir de contexte de travail (humain ou IA) pour la conception et le développement.
 > Auteur : Romain Millan — dernière mise à jour : 08/11/2026 (ajouts : authentification par passkey, design de la console, architecture DDD, healthcheck).
 
@@ -230,7 +230,7 @@ Ce ne sont pas des quotas d'équipe. Elles sont réglées dans InstanceSettings 
   - Docker et format de sortie : `bollard`, `cyclonedx-bom` ;
   - exécution : `tokio`.
 - Releases **signées minisign** par la CI du projet, avec un fichier de checksums signé. Images Docker signées cosign.
-- Publication **publique sur GitHub** : binaires via GitHub Releases (minisign), image `ghcr.io/depverify/agent` (cosign). Tout le monde peut les utiliser.
+- Publication **publique sur GitHub** : binaires via GitHub Releases (minisign), image `ghcr.io/dependencyverifier/agent` (cosign). Tout le monde peut les utiliser.
 - La console télécharge les releases depuis GitHub (ou les reçoit par **import manuel** d'un binaire signé, pour une instance sans Internet), vérifie leur signature, puis sert `install.sh` et un miroir des binaires vérifiés.
 - Plus tard : paquets `.deb` / `.rpm` dans un dépôt signé.
 
@@ -369,7 +369,7 @@ C'est **le même binaire Rust** dans tous les cas. Seuls le packaging et la vari
 #### 2. Agent en conteneur dédié (`container`)
 
 **Image officielle, aucun script.**
-- L'image `ghcr.io/depverify/agent` a pour `ENTRYPOINT` le binaire de l'agent.
+- L'image `ghcr.io/dependencyverifier/agent` a pour `ENTRYPOINT` le binaire de l'agent.
 - **Toute la configuration passe par des variables d'environnement** (et un secret pour le jeton). On ajoute un service au `docker-compose.yml`, `docker compose up -d`, et c'est tout : aucun fichier à créer, aucun script à lancer.
 - L'image est minimale (distroless ou `scratch` + certificats CA), tourne en non-root, est signée cosign et multi-arch (amd64/arm64).
 
@@ -382,7 +382,7 @@ C'est **le même binaire Rust** dans tous les cas. Seuls le packaging et la vari
   - un conteneur hors portée n'est **jamais** inspecté en profondeur ni remonté ;
   - ce comportement est couvert par des tests.
 - Garde-fou côté console : elle rejette et trace toute remontée d'un agent `compose` / `labeled` qui concerne un conteneur dont le label `com.docker.compose.project` diffère de celui déclaré par l'agent à l'appairage.
-- *Roadmap :* une image de proxy maison (`depverify/docker-proxy`) qui filtre par projet Compose et par label, pour une isolation technique.
+- *Roadmap :* une image de proxy maison (`ghcr.io/dependencyverifier/docker-proxy`) qui filtre par projet Compose et par label, pour une isolation technique.
 - Variante « un seul service » : l'agent monte directement le socket. C'est plus simple, mais l'agent devient équivalent à root sur l'hôte. Documentée, mais **déconseillée**.
 
 **Portée de la surveillance : `AGENT_SCOPE`**
@@ -429,7 +429,7 @@ services:
       dev.depverify.monitor: "false"
 
   monitoring-agent:
-    image: ghcr.io/depverify/agent@sha256:<digest>      # épinglé par digest, signé cosign
+    image: ghcr.io/dependencyverifier/agent@sha256:<digest>      # épinglé par digest, signé cosign
     restart: unless-stopped
     environment:
       AGENT_MODE: container
@@ -493,7 +493,7 @@ secrets:
 Possible quand on ne peut ni installer sur l'hôte, ni accéder au socket Docker (hébergeur restrictif, PaaS…) :
 
 ```dockerfile
-COPY --from=ghcr.io/depverify/agent@sha256:<digest> /agent /usr/local/bin/depverify-agent
+COPY --from=ghcr.io/dependencyverifier/agent@sha256:<digest> /agent /usr/local/bin/depverify-agent
 ```
 
 L'agent est lancé à côté de l'application (init type `tini` / `s6-overlay`, ou wrapper d'entrypoint) avec `AGENT_MODE=embedded`. Il inventorie **son propre système de fichiers**, ce qui couvre exactement ce qui tourne, volumes compris.
@@ -842,11 +842,11 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 - SSO OIDC.
 - Création de tickets (Jira, GitLab, GitHub) et PR de mise à jour.
 - Détection des écarts entre environnements (prod ≠ preprod ≠ repo).
-- Proxy Docker maison `depverify/docker-proxy`, qui filtre par projet Compose et par label, pour une isolation technique entre projets d'un même hôte.
+- Proxy Docker maison `ghcr.io/dependencyverifier/docker-proxy`, qui filtre par projet Compose et par label, pour une isolation technique entre projets d'un même hôte.
 - Export SBOM / VEX, rapports PDF par équipe ou par projet, aide aux dossiers NIS2.
 
 ## 12. Questions ouvertes
 
-- Réservation du nom : domaine (`depverify.dev` ou autre), organisation GitHub `depverify`, vérification des marques (INPI / EUIPO). Le préfixe des labels Docker en dépend. Au 08/11/2026, le pseudo GitHub et la crate sont libres et `depverify.dev` n'a pas de DNS. Point d'attention : « DependencyVerifier » est descriptif, donc difficile à protéger comme marque, et proche de la *dependency verification* de Gradle.
+- Réservation du nom : domaine (`depverify.dev` ou autre), organisation GitHub `DependencyVerifier` (créée le 08/11/2026), vérification des marques (INPI / EUIPO). Le préfixe des labels Docker en dépend. Au 08/11/2026, le pseudo GitHub et la crate sont libres et `depverify.dev` n'a pas de DNS. Point d'attention : « DependencyVerifier » est descriptif, donc difficile à protéger comme marque, et proche de la *dependency verification* de Gradle.
 - **Niveau de 2FA exigé pour les admins** : le code par email suffit-il pour la 2FA obligatoire des super admins, `TEAM_ADMIN` et `PROJECT_ADMIN`, ou faut-il exiger TOTP ou passkey pour ces rôles (le code email dépend de la sécurité de la boîte mail) ?
 - **Bibliothèque WebAuthn** : à choisir à l'implémentation de l'authentification (support natif Symfony s'il existe à ce moment-là, sinon `web-auth/webauthn-framework`).
