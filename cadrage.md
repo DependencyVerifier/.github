@@ -1,6 +1,6 @@
-# DepRadar — Surveillance des dépendances et CVE par agent
+# DependencyVerifier — Surveillance des dépendances et CVE par agent
 
-> Nom du projet : **DepRadar**. Identifiant technique `depradar` : console `depradar`, agent `depradar-agent`, image `ghcr.io/depradar/agent`, préfixe des labels Docker `dev.depradar.*`.
+> Nom du projet : **DependencyVerifier** (anciennement « DepRadar », abandonné car déjà pris). Identifiant technique court `depverify` : console `depverify`, agent `depverify-agent`, image `ghcr.io/depverify/agent`, préfixe des labels Docker `dev.depverify.*`, console locale `https://console.depverify.localhost`.
 > Document de cadrage destiné à servir de contexte de travail (humain ou IA) pour la conception et le développement.
 > Auteur : Romain Millan — dernière mise à jour : 08/11/2026 (ajouts : authentification par passkey, design de la console, architecture DDD, healthcheck).
 
@@ -77,7 +77,7 @@ Les outils existants (Dependabot, Renovate, Snyk, Trivy, OWASP Dependency-Track)
 ```
  Serveur supervisé                               Instance self-hosted   
 ┌──────────────────────────┐                ┌──────────────────────────────────┐
-│  depradar-agent (Rust)   │   HTTPS sortant│  Console                         │
+│  depverify-agent (Rust)   │   HTTPS sortant│  Console                         │
 │  - user système dédié    │ ─────────────► │  - API agents (signée)           │
 │  - lit lockfiles, dpkg,  │  requêtes      │  - UI web (équipes/projets)      │
 │    runtimes, Docker (RO) │  signées Ed25519│ - Workers (Messenger)            │
@@ -230,7 +230,7 @@ Ce ne sont pas des quotas d'équipe. Elles sont réglées dans InstanceSettings 
   - Docker et format de sortie : `bollard`, `cyclonedx-bom` ;
   - exécution : `tokio`.
 - Releases **signées minisign** par la CI du projet, avec un fichier de checksums signé. Images Docker signées cosign.
-- Publication **publique sur GitHub** : binaires via GitHub Releases (minisign), image `ghcr.io/depradar/agent` (cosign). Tout le monde peut les utiliser.
+- Publication **publique sur GitHub** : binaires via GitHub Releases (minisign), image `ghcr.io/depverify/agent` (cosign). Tout le monde peut les utiliser.
 - La console télécharge les releases depuis GitHub (ou les reçoit par **import manuel** d'un binaire signé, pour une instance sans Internet), vérifie leur signature, puis sert `install.sh` et un miroir des binaires vérifiés.
 - Plus tard : paquets `.deb` / `.rpm` dans un dépôt signé.
 
@@ -241,7 +241,7 @@ curl -fsSL https://console.example.com/install.sh | AGENT_TOKEN=xxxx sh
 ```
 
 1. Le jeton passe par une variable d'environnement, pas en argument, pour limiter l'exposition dans `ps` et l'historique. Il est à usage unique et expire en ~1 h.
-2. Le script télécharge le binaire, vérifie son SHA-256, crée l'utilisateur système `depradar-agent`, installe l'unité systemd (durcie : `ProtectSystem=strict`, `NoNewPrivileges`, `ReadOnlyPaths`…) et lance l'enrôlement.
+2. Le script télécharge le binaire, vérifie son SHA-256, crée l'utilisateur système `depverify-agent`, installe l'unité systemd (durcie : `ProtectSystem=strict`, `NoNewPrivileges`, `ReadOnlyPaths`…) et lance l'enrôlement.
 
 ### Chaîne de confiance de l'installation
 
@@ -369,7 +369,7 @@ C'est **le même binaire Rust** dans tous les cas. Seuls le packaging et la vari
 #### 2. Agent en conteneur dédié (`container`)
 
 **Image officielle, aucun script.**
-- L'image `ghcr.io/depradar/agent` a pour `ENTRYPOINT` le binaire de l'agent.
+- L'image `ghcr.io/depverify/agent` a pour `ENTRYPOINT` le binaire de l'agent.
 - **Toute la configuration passe par des variables d'environnement** (et un secret pour le jeton). On ajoute un service au `docker-compose.yml`, `docker compose up -d`, et c'est tout : aucun fichier à créer, aucun script à lancer.
 - L'image est minimale (distroless ou `scratch` + certificats CA), tourne en non-root, est signée cosign et multi-arch (amd64/arm64).
 
@@ -382,27 +382,27 @@ C'est **le même binaire Rust** dans tous les cas. Seuls le packaging et la vari
   - un conteneur hors portée n'est **jamais** inspecté en profondeur ni remonté ;
   - ce comportement est couvert par des tests.
 - Garde-fou côté console : elle rejette et trace toute remontée d'un agent `compose` / `labeled` qui concerne un conteneur dont le label `com.docker.compose.project` diffère de celui déclaré par l'agent à l'appairage.
-- *Roadmap :* une image de proxy maison (`depradar/docker-proxy`) qui filtre par projet Compose et par label, pour une isolation technique.
+- *Roadmap :* une image de proxy maison (`depverify/docker-proxy`) qui filtre par projet Compose et par label, pour une isolation technique.
 - Variante « un seul service » : l'agent monte directement le socket. C'est plus simple, mais l'agent devient équivalent à root sur l'hôte. Documentée, mais **déconseillée**.
 
 **Portée de la surveillance : `AGENT_SCOPE`**
 
 | `AGENT_SCOPE` | Conteneurs surveillés | Usage |
 |---|---|---|
-| `compose` (**défaut**) | **Tous** les conteneurs de son projet Compose (détecté automatiquement via le label `com.docker.compose.project`), sauf ceux marqués `dev.depradar.monitor=false` | Cas standard : « je surveille mon projet » |
-| `labeled` | **Seulement** les conteneurs de son projet Compose marqués `dev.depradar.monitor=true` | « Je ne veux surveiller que `app` et `worker`, pas `redis` ni `mailpit` » |
-| `host` | **Tous** les conteneurs de l'hôte, sauf `dev.depradar.monitor=false`. Avec montage `/host:ro`, aussi l'OS de l'hôte | Un seul agent pour tout un hôte Docker, ECS sur EC2 (service `DAEMON`) |
+| `compose` (**défaut**) | **Tous** les conteneurs de son projet Compose (détecté automatiquement via le label `com.docker.compose.project`), sauf ceux marqués `dev.depverify.monitor=false` | Cas standard : « je surveille mon projet » |
+| `labeled` | **Seulement** les conteneurs de son projet Compose marqués `dev.depverify.monitor=true` | « Je ne veux surveiller que `app` et `worker`, pas `redis` ni `mailpit` » |
+| `host` | **Tous** les conteneurs de l'hôte, sauf `dev.depverify.monitor=false`. Avec montage `/host:ro`, aussi l'OS de l'hôte | Un seul agent pour tout un hôte Docker, ECS sur EC2 (service `DAEMON`) |
 
 **Labels Docker reconnus**, posés sur les services de l'application dans le `docker-compose.yml`. Ils sont tous optionnels :
 
 | Label | Effet | Défaut |
 |---|---|---|
-| `dev.depradar.monitor` | `true` / `false` : inclure ou exclure ce conteneur | inclus (sauf en portée `labeled`) |
-| `dev.depradar.name` | Nom affiché de l'application dans la console | nom du service Compose |
-| `dev.depradar.environment` | **UUID** de l'environnement auquel rattacher ce service | environnement par défaut du jeton d'enrôlement |
-| `dev.depradar.paths` | Chemins dans le conteneur où chercher `composer.lock`, `installed.json`, lockfiles Node… (séparés par des virgules) | détection automatique (`WORKDIR`, `/app`, `/var/www/html`, `/srv/app`…) |
+| `dev.depverify.monitor` | `true` / `false` : inclure ou exclure ce conteneur | inclus (sauf en portée `labeled`) |
+| `dev.depverify.name` | Nom affiché de l'application dans la console | nom du service Compose |
+| `dev.depverify.environment` | **UUID** de l'environnement auquel rattacher ce service | environnement par défaut du jeton d'enrôlement |
+| `dev.depverify.paths` | Chemins dans le conteneur où chercher `composer.lock`, `installed.json`, lockfiles Node… (séparés par des virgules) | détection automatique (`WORKDIR`, `/app`, `/var/www/html`, `/srv/app`…) |
 
-*Préfixe en notation DNS inversée, selon la convention Docker. Il suppose l'usage du domaine `depradar.dev` : à ajuster selon le domaine réellement réservé.*
+*Préfixe en notation DNS inversée, selon la convention Docker. Il suppose l'usage du domaine `depverify.dev` : à ajuster selon le domaine réellement réservé.*
 
 **Sécurité des labels :** un label n'est qu'une **proposition**. La console vérifie que l'environnement visé appartient bien à l'équipe de l'agent, sinon elle refuse et le trace dans l'audit. Un rattachement à un environnement autre que celui par défaut du jeton peut exiger une validation de l'admin (réglage d'équipe).
 
@@ -413,23 +413,23 @@ services:
   app:
     image: registry.example.com/mon-projet/app:1.4.2
     labels:
-      dev.depradar.name: "API publique"
-      dev.depradar.paths: "/var/www/api"
+      dev.depverify.name: "API publique"
+      dev.depverify.paths: "/var/www/api"
   worker:
     image: registry.example.com/mon-projet/app:1.4.2
     labels:
-      dev.depradar.name: "Worker Messenger"
+      dev.depverify.name: "Worker Messenger"
   redis:
     image: redis:7.4
     labels:
-      dev.depradar.monitor: "false"      # exclu de la surveillance
+      dev.depverify.monitor: "false"      # exclu de la surveillance
   mailpit:
     image: axllent/mailpit
     labels:
-      dev.depradar.monitor: "false"
+      dev.depverify.monitor: "false"
 
   monitoring-agent:
-    image: ghcr.io/depradar/agent@sha256:<digest>      # épinglé par digest, signé cosign
+    image: ghcr.io/depverify/agent@sha256:<digest>      # épinglé par digest, signé cosign
     restart: unless-stopped
     environment:
       AGENT_MODE: container
@@ -472,7 +472,7 @@ secrets:
 ```
 
 **Fonctionnement :**
-- Pour chaque conteneur retenu, l'agent récupère le **digest de l'image**, l'analyse **une fois** (cache par digest), puis lit en ciblé les fichiers d'inventaire dans le conteneur en cours (API `archive`, voir la nuance plus haut). Les labels `dev.depradar.paths` orientent cette lecture.
+- Pour chaque conteneur retenu, l'agent récupère le **digest de l'image**, l'analyse **une fois** (cache par digest), puis lit en ciblé les fichiers d'inventaire dans le conteneur en cours (API `archive`, voir la nuance plus haut). Les labels `dev.depverify.paths` orientent cette lecture.
 - Il remonte aussi la version du **moteur Docker / containerd / runc**.
 - 1 service Compose retenu = 1 AppInstance. Un service répliqué (`deploy.replicas: 3`) reste **une seule** AppInstance, avec ses N conteneurs.
 - Plusieurs agents `container` sur le même hôte sont regroupés par la console sous un même Host, grâce à l'ID du moteur Docker.
@@ -485,7 +485,7 @@ secrets:
 **ECS sur EC2 :**
 - même image, en `AGENT_SCOPE=host` ;
 - déployée comme service ECS en stratégie `DAEMON` : un agent par instance ;
-- volume d'état sur l'instance (`/var/lib/depradar-agent`) ;
+- volume d'état sur l'instance (`/var/lib/depverify-agent`) ;
 - en autoscaling, utiliser un **jeton d'enrôlement réutilisable** (voir §6).
 
 #### 3. Agent embarqué dans l'image de l'application (`embedded`, secours, hors MVP)
@@ -493,7 +493,7 @@ secrets:
 Possible quand on ne peut ni installer sur l'hôte, ni accéder au socket Docker (hébergeur restrictif, PaaS…) :
 
 ```dockerfile
-COPY --from=ghcr.io/depradar/agent@sha256:<digest> /agent /usr/local/bin/depradar-agent
+COPY --from=ghcr.io/depverify/agent@sha256:<digest> /agent /usr/local/bin/depverify-agent
 ```
 
 L'agent est lancé à côté de l'application (init type `tini` / `s6-overlay`, ou wrapper d'entrypoint) avec `AGENT_MODE=embedded`. Il inventorie **son propre système de fichiers**, ce qui couvre exactement ce qui tourne, volumes compris.
@@ -774,7 +774,7 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
 - **Front-end en TypeScript strict uniquement** : aucun fichier `.js` dans `assets/`, vérifié par `make typecheck`. **Pas de Mercure**, le projet n'a pas besoin de hub temps réel. Les **migrations Doctrine sont rangées par année** (`migrations/<AAAA>/`).
 - **Healthcheck** : `GET /_healthcheck`. La page vient de Romain-MILLAN-Healthcheck, adaptée pour ne charger aucune ressource externe. Elle exécute des sondes (base de données…), renvoie 503 en JSON si une dépendance tombe et sert de healthcheck au conteneur.
 - **Signature** : le footer affiche le tag Romain MILLAN, intégré en submodule git (`console/assets/romain-millan-tag`).
-- **Domaine local de développement** : `https://console.depradar.localhost`.
+- **Domaine local de développement** : `https://console.depverify.localhost`.
 - **Messenger** (transport Doctrine, sans Redis requis) et **Scheduler** pour les synchros et le matching. **Notifier** pour les canaux. **Security** (voters) pour le cloisonnement.
 - `composer/semver` est natif pour Composer. Il existe des implémentations PHP de semver npm. La comparaison dpkg/rpm est à implémenter ou à porter.
 - Front : **Twig + Symfony UX (Turbo, Stimulus, Twig Components, Live Components)** pour un seul déployable simple à auto-héberger.
@@ -823,7 +823,7 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 2. Enrôlement d'agent complet : jeton unique et jeton réutilisable (autoscaling), appairage, validation humaine, épinglage de clé, requêtes signées.
 2bis. Inventaire toutes les 6 h + à la demande + à chaque changement d'image, historique de 90 jours (réglable par équipe).
 3. Agent Linux/systemd : paquets OS, PHP/Composer, Node, runtimes, découverte automatique et chemins déclarés.
-4. Agent mode `container` : image officielle sans script, proxy Docker en lecture seule, portées `compose` / `labeled` / `host`, labels `dev.depradar.*`. Couvre aussi ECS sur EC2 en service `DAEMON`. Images analysées par digest, plus lecture ciblée des fichiers dans les conteneurs (§6bis). L'agent `host` couvre aussi Docker si activé.
+4. Agent mode `container` : image officielle sans script, proxy Docker en lecture seule, portées `compose` / `labeled` / `host`, labels `dev.depverify.*`. Couvre aussi ECS sur EC2 en service `DAEMON`. Images analysées par digest, plus lecture ciblée des fichiers dans les conteneurs (§6bis). L'agent `host` couvre aussi Docker si activé.
 5. Synchro OSV + endoflife.date + KEV + EPSS. Matching et Findings.
 6. Dashboard par projet et environnement : dépendances, versions, vulnérabilités, fins de vie, obsolescence.
 7. Notifications email et webhook, règles par projet, digest, seuils, agent muet, acceptation de risque.
@@ -842,11 +842,11 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 - SSO OIDC.
 - Création de tickets (Jira, GitLab, GitHub) et PR de mise à jour.
 - Détection des écarts entre environnements (prod ≠ preprod ≠ repo).
-- Proxy Docker maison `depradar/docker-proxy`, qui filtre par projet Compose et par label, pour une isolation technique entre projets d'un même hôte.
+- Proxy Docker maison `depverify/docker-proxy`, qui filtre par projet Compose et par label, pour une isolation technique entre projets d'un même hôte.
 - Export SBOM / VEX, rapports PDF par équipe ou par projet, aide aux dossiers NIS2.
 
 ## 12. Questions ouvertes
 
-- Réservation du nom : domaine (`depradar.dev` ou autre), organisation GitHub `depradar`, vérification des marques (INPI / EUIPO). Le préfixe des labels Docker en dépend.
+- Réservation du nom : domaine (`depverify.dev` ou autre), organisation GitHub `depverify`, vérification des marques (INPI / EUIPO). Le préfixe des labels Docker en dépend. Au 08/11/2026, le pseudo GitHub et la crate sont libres et `depverify.dev` n'a pas de DNS. Point d'attention : « DependencyVerifier » est descriptif, donc difficile à protéger comme marque, et proche de la *dependency verification* de Gradle.
 - **Niveau de 2FA exigé pour les admins** : le code par email suffit-il pour la 2FA obligatoire des super admins, `TEAM_ADMIN` et `PROJECT_ADMIN`, ou faut-il exiger TOTP ou passkey pour ces rôles (le code email dépend de la sécurité de la boîte mail) ?
 - **Bibliothèque WebAuthn** : à choisir à l'implémentation de l'authentification (support natif Symfony s'il existe à ce moment-là, sinon `web-auth/webauthn-framework`).

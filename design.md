@@ -1,4 +1,4 @@
-# DepRadar Console — Design guidelines
+# DependencyVerifier Console — Design guidelines
 
 > UI charter for the console. Source of truth for layout, tokens and components.
 > Decisions behind it: `docs/cadrage.md` §3 ("Design de la console") and §9.
