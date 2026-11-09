@@ -2,7 +2,7 @@
 
 > Nom du projet : **DependencyVerifier** (anciennement « DepRadar », abandonné car déjà pris). Identifiant technique court `depverify` : console `depverify`, agent `depverify-agent`, image `ghcr.io/dependencyverifier/agent`, organisation GitHub `DependencyVerifier` (dépôts `console`, `agent`, `agent-image`), préfixe des labels Docker `dev.depverify.*`, console locale `https://console.depverify.localhost`.
 > Document de cadrage destiné à servir de contexte de travail (humain ou IA) pour la conception et le développement.
-> Auteur : Romain Millan — dernière mise à jour : 08/11/2026 (ajouts : authentification par passkey, design de la console, architecture DDD, healthcheck).
+> Auteur : Romain Millan — dernière mise à jour : 09/11/2026 (ajouts : authentification par passkey, design de la console, architecture DDD, healthcheck, domaine configurable, 2FA des admins).
 
 ---
 
@@ -64,6 +64,7 @@ Les outils existants (Dependabot, Renovate, Snyk, Trivy, OWASP Dependency-Track)
 | Actions | **Notification uniquement** : email et webhook custom, Slack/Teams/etc. en bonus. Pas de création de ticket ni de PR au MVP. |
 | Gestion du bruit | Seuil de sévérité, digest périodique, acceptation de risque, alerte « agent muet ». **Tout est configurable par projet.** |
 | Authentification | Comptes locaux. **Connexion principale : email + mot de passe, puis un second facteur** : TOTP si l'utilisateur l'a configuré, sinon code à usage unique envoyé par email. **Passkey (WebAuthn) proposée en option, jamais obligatoire** : clé matérielle type YubiKey, trousseau iCloud, gestionnaire de mots de passe type Bitwarden. Pas de connexion via GitHub ni d'inscription libre. **Pas d'API publique ni de jetons d'API au MVP** : l'API complète (lecture + écriture) arrivera avec les sources CI et Git. Pas de SSO au MVP, mais il reste prévu dans le design (voir §7). |
+| Domaine | **Aucun domaine imposé.** Chaque instance est auto-hébergée et configure son URL publique (`SERVER_NAME`, `DEFAULT_URI` ; le `rpId` des passkeys en découle). Instance de référence : `console.depverify.romainmillan.fr`. Les identifiants techniques sont des constantes du produit, indépendantes du domaine : binaire `depverify-agent`, labels `dev.depverify.*`, image `ghcr.io/dependencyverifier/agent`, organisation GitHub `DependencyVerifier`. En local : `https://console.depverify.localhost`. |
 | Design de la console | Interface **sobre et dense, inspirée de shadcn/ui** : sidebar à gauche, en-têtes d'objet, cartes de métadonnées, onglets, thème clair / sombre / système. **Symfony UX Toolkit (kit `shadcn`) + Tailwind CSS v4**, compilé par Vite via Symfony Reprise. Polices auto-hébergées (voir §9 et `docs/design.md`). |
 | Autoscaling | **Jeton d'enrôlement réutilisable**, validé une fois par un humain, limité en nombre d'agents et dans le temps. Les agents enrôlés avec ce jeton sont validés automatiquement (voir §6). |
 | Mode `embedded` | **Hors MVP**, ajouté quand un besoin réel apparaît. |
@@ -402,7 +403,7 @@ C'est **le même binaire Rust** dans tous les cas. Seuls le packaging et la vari
 | `dev.depverify.environment` | **UUID** de l'environnement auquel rattacher ce service | environnement par défaut du jeton d'enrôlement |
 | `dev.depverify.paths` | Chemins dans le conteneur où chercher `composer.lock`, `installed.json`, lockfiles Node… (séparés par des virgules) | détection automatique (`WORKDIR`, `/app`, `/var/www/html`, `/srv/app`…) |
 
-*Préfixe en notation DNS inversée, selon la convention Docker. Il suppose l'usage du domaine `depverify.dev` : à ajuster selon le domaine réellement réservé.*
+*Préfixe en notation DNS inversée, selon la convention Docker. C'est une constante du produit, identique sur toutes les instances : elle ne dépend pas du domaine de chaque console (voir §3, « Domaine »).*
 
 **Sécurité des labels :** un label n'est qu'une **proposition**. La console vérifie que l'environnement visé appartient bien à l'équipe de l'agent, sinon elle refuse et le trace dans l'audit. Un rattachement à un environnement autre que celui par défaut du jeton peut exiger une validation de l'admin (réglage d'équipe).
 
@@ -570,7 +571,7 @@ Le même principe « liste de ce qui tourne + analyse de l'image par digest » s
     - credential découvrable (`residentKey: preferred`) et `userVerification: required`, pour que la passkey vaille à elle seule une authentification multifacteur ;
     - plusieurs passkeys par compte, nommées, révocables individuellement depuis le profil ;
     - vérification de l'origine (`rpId` = domaine de l'instance) et du compteur de signatures ;
-  - 2FA **obligatoire pour super admin, TEAM_ADMIN et PROJECT_ADMIN** (voir §12 sur le niveau exigé) ;
+  - 2FA **obligatoire pour super admin, TEAM_ADMIN et PROJECT_ADMIN**. Tout second facteur est accepté, **y compris le code par email** (décision du 09/11/2026) ; TOTP et passkey restent proposés ;
   - enregistrement, révocation et usage des passkeys et du TOTP **tracés dans l'audit** ; échecs répétés limités (rate limiting par compte et par IP) ;
   - pas d'inscription libre : création de compte **sur invitation uniquement**. Pas de connexion via un fournisseur tiers (GitHub…) au MVP ;
   - sessions courtes, cookies `HttpOnly` / `Secure` / `SameSite=Strict` ;
@@ -847,6 +848,5 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 
 ## 12. Questions ouvertes
 
-- Réservation du nom : domaine (`depverify.dev` ou autre), organisation GitHub `DependencyVerifier` (créée le 08/11/2026), vérification des marques (INPI / EUIPO). Le préfixe des labels Docker en dépend. Au 08/11/2026, le pseudo GitHub et la crate sont libres et `depverify.dev` n'a pas de DNS. Point d'attention : « DependencyVerifier » est descriptif, donc difficile à protéger comme marque, et proche de la *dependency verification* de Gradle.
-- **Niveau de 2FA exigé pour les admins** : le code par email suffit-il pour la 2FA obligatoire des super admins, `TEAM_ADMIN` et `PROJECT_ADMIN`, ou faut-il exiger TOTP ou passkey pour ces rôles (le code email dépend de la sécurité de la boîte mail) ?
+- Marque : vérification de « DependencyVerifier » à l'INPI et à l'EUIPO (classes 9 et 42). Le nom est descriptif, donc difficile à protéger, et proche de la *dependency verification* de Gradle. L'organisation GitHub `DependencyVerifier` existe depuis le 08/11/2026.
 - **Bibliothèque WebAuthn** : à choisir à l'implémentation de l'authentification (support natif Symfony s'il existe à ce moment-là, sinon `web-auth/webauthn-framework`).
