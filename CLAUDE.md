@@ -56,6 +56,7 @@ Each repository has its own `CLAUDE.md` with stack details and commands. Locally
 - PHP: Symfony String `u()` instead of native string functions; `SluggerInterface` for slugs; `#[AutoconfigureTag]` without explicit name.
 - Git submodules: clone with `--recurse-submodules` (or `make submodules` in `console/`).
 - Never commit dependencies or build output (`node_modules/`, `public/build/`, `target/`): ignored in each repository.
+- **Only organization owners push to `main`**; everyone else opens a pull request (see `governance/` in the `.github` repository).
 - Never commit without being asked.
 
 ## MVP scope (summary)
