@@ -74,6 +74,11 @@ Radius: medium (`--radius` ≈ 0.5rem). Shadows: almost none; separation by bord
 - **Two columns** on wide screens: main content + narrow side panel of key facts.
 - **Dialogs** for creation forms (two-column fields when it helps), footer with Cancel + primary action.
 - **Empty states**: one sentence + primary action ("No project yet." / "Add project").
+- **Listings are DataTables** (server-side: paging, sort, search through the page URL), in a bordered card; actions of a row are small buttons or an inline role select in the last column. No client-side table of more than one page.
+- **Lazy zones** (quota gauges, audit log): a Turbo Frame rendered first as `skeleton` lines close to the final size, then filled; on failure an inline alert "Couldn't load this section" with **Retry**. Never a spinner over the whole page.
+- **After an action**: the form stays in place; a validation error re-renders it (422) with its values (never a password or a code); a success answers a Turbo Stream that refreshes the lists and gauges concerned and appends an `alert` at the top of the page, with no reload. Refusals (quota, last admin, permission) use the same alert, in destructive style.
+- **Quota gauges**: native `<meter>` per quota (usage / limit, "Unlimited" when empty), a warning banner from 80 %, and a destructive one at 100 % ("Quota of N … reached, contact the instance administrator").
+- **Sidebar logo**: the application logo at the top of the sidebar, above the team switcher; the switcher lists the user's teams with their role.
 - **Footer** (`AppFooter`, every layout): copyright on the left, "Made by" + the Romain MILLAN tag on the right (Romain-MILLAN-Tag git submodule, muted color in both themes).
 
 ## 6. Authentication screens
@@ -81,8 +86,11 @@ Radius: medium (`--radius` ≈ 0.5rem). Shadows: almost none; separation by bord
 Centered, narrow card on a plain background; top bar with logo and theme toggle only.
 
 1. **Sign in**: title, one-line hint, then **email + password form first** with a full-width primary button; below, an "or" separator and a secondary button **"Sign in with a passkey"**. No "Register" link (accounts are created by invitation), no third-party login.
-2. **Second factor** (after password): TOTP code input (OTP component) if TOTP is configured, otherwise "We sent a code to j***@example.com" + code input + "Resend code" (rate-limited). Link to use a passkey instead when the user has one.
-3. **Account security** (profile): list of passkeys (name, created, last used, revoke), add passkey, TOTP setup / reset.
+2. **Second factor** (after password, every sign-in): one `one-time-code` input (not the segmented OTP component: backup codes are alphanumeric), TOTP if configured, otherwise "We sent a code to j***@example.com" + "Resend code" (rate-limited). Checkbox **"Trust this device for 30 days"**, link "Use a backup code". Link to use a passkey instead when the user has one (step 1b).
+3. **Account security** (profile): password change, TOTP setup (QR code generated locally + secret in text, then confirmation code), backup codes shown **once** (page not cached, no redirect), regeneration; a "TOTP recommended" banner for a super admin without TOTP. Passkeys list in step 1b. Sensitive actions go through **Re-authenticate** (password then second factor) after 10 min.
+4. **Password forgotten / reset**: the same answer whether the account exists or not; the emailed link opens a small relay page ("Continue") before the new password form, so the token never stays in the address bar.
+5. **Invitation**: relay page from the email, then one page with the same text in every case: "Accept" when signed in with the invited email, "Sign in" when the account exists, otherwise "Choose a password" (the sign-in and second factor follow, then the page comes back).
+6. **Link expired**: one neutral page (410) for an expired, used or revoked link.
 
 ## 7. Component map (shadcn kit)
 
@@ -94,6 +102,6 @@ Centered, narrow card on a plain background; top bar with logo and theme toggle 
 | Status / severity | `badge` |
 | Navigation | `sidebar`, `breadcrumb`, `tabs`, `command` (palette) |
 | Menus and overlays | `dropdown-menu`, `dialog`, `alert-dialog`, `sheet`, `tooltip`, `popover` |
-| Lists | `table`, `pagination`, `empty`, `skeleton` |
+| Lists | DataTables (`<twig:DataTable>`, `assets/styles/datatables.css`), `empty`, `skeleton` |
 | Feedback | `alert`, `toast` / `sonner`, `spinner` |
 | Auth blocks | `login` block (adapted to section 6) |

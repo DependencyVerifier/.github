@@ -50,7 +50,7 @@ Les outils existants (Dependabot, Renovate, Snyk, Trivy, OWASP Dependency-Track)
 | Conteneurs / ECS | Pour les applications 100 % Docker, l'unité d'inventaire est l'**image (par digest)**. 4 déploiements possibles, avec le même binaire : `host` (sur le serveur), `container` (image officielle, un service dans le `docker-compose.yml`, portée réglable par `AGENT_SCOPE` et par labels Docker), `embedded` (dans l'image de l'application, secours), `ecs` (collecteur via l'API AWS pour Fargate, **hors MVP**). Voir §6bis. |
 | Identifiants | **UUID (v7) pour toutes les entités** : équipe, projet, environnement, hôte, agent, application, etc. Aucun identifiant auto-incrémenté ni nom utilisé comme référence technique (voir §5). |
 | Création des équipes | Par le **super admin**, avec des **quotas** par équipe (projets, agents, membres…). Des **quotas par défaut** définis dans la configuration de l'instance s'appliquent à la création. |
-| Dépassement de quota | **Blocage strict.** |
+| Dépassement de quota | **Blocage strict, super admin compris** : il doit d'abord relever le quota de l'équipe (décision du 09/11/2026). |
 | Super admin | **Pleins pouvoirs sur toute l'instance**, y compris l'appairage des agents. Seul un autre super admin peut lui retirer `ROLE_SUPER_ADMIN`. |
 | Validation des agents | Par les **admins de l'équipe**, sans avoir besoin du super admin (qui peut aussi le faire). |
 | Droits | **Rôles fixes + permissions additionnelles accordées individuellement**, à 3 niveaux : instance (super admin), équipe, projet. Un utilisateur peut appartenir à plusieurs équipes sans les gérer, et ne voir que certains projets de chacune (voir §7bis). |
@@ -71,7 +71,47 @@ Les outils existants (Dependabot, Renovate, Snyk, Trivy, OWASP Dependency-Track)
 | Registres d'images applicatives | **Aucun accès registre au MVP, quelle que soit l'origine de l'image** : GitHub Container Registry, registre privé ou **image construite sur le serveur** avec un Dockerfile. Dès qu'un conteneur tourne, son image est présente dans le moteur Docker local, et l'agent la lit via l'API Docker. Il n'a besoin d'aucun identifiant de registre. L'accès aux registres n'arrivera qu'avec le collecteur Fargate (voir §6bis, « Identité d'une image »). |
 | Distribution de l'agent | **GitHub public** : binaires (GitHub Releases, signés minisign) et image Docker (`ghcr.io`, signée cosign), utilisables par tous. La console vérifie les signatures avant de servir une version. **Import manuel** d'un binaire signé possible pour les instances sans accès Internet. |
 | Dimensionnement | **Cible MVP ≤ 200 agents** par instance. Le design doit permettre de monter à **≤ 2 000 agents** sans refonte (voir §9bis). |
+| Carte des contextes (console) | **Identity et Organization ne s'importent jamais.** Identity consomme le contrat `FindPendingInvitation` / `AcceptInvitation` d'Organization ; Organization consomme `FindAccounts` et les événements d'intégration `AccountDeactivated` / `AccountReactivated` d'Identity. Relation client / fournisseur dans les deux sens, uniquement par des contrats `Shared` (requêtes, commandes, événements). |
+| Journal d'audit | **Deux rôles PostgreSQL** : `depverify_app` (runtime, `INSERT` / `SELECT` seulement sur le schéma `audit`) et `depverify_owner` (migrations et maintenance des partitions, CLI uniquement). Le journal est non modifiable par l'application ; une preuve d'altération par chaînage est un non-objectif. |
+| UI de la console | **Listes en DataTables côté serveur** (pagination, tri et recherche passent par le bus de requêtes) ; **Turbo Frames lazy** avec placeholder pour les zones lourdes qui ne sont pas des listes (jauges de quota, journal d'audit) ; **Turbo Stream** après une action, sans rechargement. Pas de temps réel (pas de Mercure). |
+| Exécution | **Mode worker FrankenPHP, production comprise** (`FRANKENPHP_LOOP_MAX=500`) : aucun état statique, tout service avec un état implémente `ResetInterface`. |
 | Fréquence d'inventaire | **Toutes les 6 h + à la demande** (`SCAN_NOW`), et immédiatement à chaque changement d'image détecté en conteneur. **Historique de 90 jours**, puis seul le dernier état est conservé. Réglable par équipe. |
+
+### Décisions du step 1 de la console (09/11/2026)
+
+Socle Identity, Organization et Audit. Le détail et les tests associés sont dans le plan du step ; ce qui suit est ce qui engage la suite.
+
+**Connexion et comptes**
+1. Passkeys reportées au step 1b ; le modèle leur réserve leur place.
+2. **Second facteur à chaque connexion, pour tout le monde** : TOTP s'il est configuré, sinon code par email. « Faire confiance à cet appareil » saute le second facteur pendant 30 jours, admins compris, jamais le mot de passe.
+3. Perte du TOTP : 10 codes de secours à usage unique (affichés une fois, stockés hachés), ou réinitialisation du 2FA par le super admin (auditée). Une fois le TOTP actif, plus de repli sur le code email.
+4. Emails par `MAILER_DSN` (Mailpit en dev, TLS obligatoire en production) ; l'écran SMTP d'InstanceSettings est reporté.
+5. Mot de passe de 12 à 4 096 caractères, sans règle de composition, Argon2id, ni égal à l'email ni le contenant ; pas d'appel HIBP.
+6. Limitation des échecs en fenêtre glissante, sans verrouillage du compte : mot de passe 5 / 15 min par compte + IP et 50 / 15 min par IP ; code email 5 essais par code et 3 renvois / 15 min ; second facteur 5 échecs / 15 min et 20 / 24 h par compte (avec email d'alerte au titulaire). Tout passe par `symfony/rate-limiter`, en échec fermé.
+7. Sessions en PostgreSQL : 30 min d'inactivité, 12 h au total, cookie `__Host-` `HttpOnly` / `Secure` / `SameSite=Strict`, pas de « remember me ».
+8. Ré-authentification (mot de passe puis second facteur) au-delà de 10 min pour : mot de passe, TOTP et codes de secours, `ROLE_SUPER_ADMIN`, réinitialisation du 2FA d'un autre compte, désactivation d'un compte.
+9. Mot de passe oublié : même réponse que le compte existe ou non, lien à usage unique de 30 min, 2FA toujours exigé ensuite, sessions et appareils de confiance révoqués.
+10. Emails d'alerte au titulaire (changement de mot de passe, TOTP activé ou désactivé, codes régénérés, 2FA réinitialisé, `ROLE_SUPER_ADMIN` accordé ou retiré, nouvel appareil de confiance), sans lien d'action.
+11. Comptes « notification seule » : de vrais `User` sans `account.login` ; ce step livre le modèle et le refus de connexion, le reste vient avec le contexte Notification.
+
+**Équipes, rôles et quotas**
+12. Le premier `TEAM_ADMIN` est invité à la création de l'équipe ; une équipe sans admin est tolérée jusqu'à l'acceptation, ensuite elle garde au moins un `TEAM_ADMIN` actif.
+13. Ordre des rôles : `TEAM_ADMIN` > `TEAM_MEMBER` > `TEAM_VIEWER` > `TEAM_GUEST` et `PROJECT_ADMIN` > `PROJECT_MEMBER` > `PROJECT_VIEWER` ; on peut attribuer un rôle égal au sien ; un `TEAM_ADMIN` couvre tous les rôles projet de son équipe ; un `PROJECT_ADMIN` ne touche jamais aux rôles d'équipe.
+14. Invitation sur un projet sans être dans l'équipe : l'acceptation crée aussi une TeamMembership `TEAM_GUEST`. Invitation de 7 jours, renvoyable (3 / h par invitation, 30 / h par équipe) et révocable ; quota `maxMembers` vérifié à l'envoi et à l'acceptation.
+15. Quotas : le super admin est bloqué lui aussi (corrige §5ter et §7bis).
+16. Suppressions : comptes désactivés, jamais supprimés ; projet ou environnement supprimé seulement s'il est vide ; suppression d'équipe et effacement RGPD reportés.
+
+**Audit et exécution**
+17. L'audit enregistre les commandes métier (succès et échec), les refus d'accès (404 et 403) et les événements d'authentification, pas les lectures réussies. Une création est auditée **sur son parent** (projet sur l'équipe, environnement sur le projet), pour qu'un refus garde la portée de l'équipe.
+18. `audit.audit_log` partitionnée par mois, triggers qui refusent `UPDATE`, `DELETE` et `TRUNCATE`, purge par détachement des partitions plus anciennes que `AUDIT_RETENTION_DAYS` (365 jours).
+19. Mode worker FrankenPHP en production ; connexions hors bus avec délais de session (`lock_timeout`, `statement_timeout`).
+20. UI en anglais via le translator ; listes en DataTables, zones lourdes en Turbo Frames lazy, Turbo Stream après une action.
+
+**Risques acceptés**
+- Un super admin sans TOTP : sa boîte mail devient le seul facteur (réinitialisation, code, appareil de confiance). Compensé par les emails d'alerte et un bandeau « TOTP recommandé ».
+- L'audit de l'authentification échoue ouvert : une écriture d'audit en échec est journalisée sans bloquer la connexion.
+- Qui connaît un mot de passe peut bloquer le second facteur de ce compte pendant 24 h, et, derrière un NAT, la fenêtre IP du second facteur des collègues pendant 15 min.
+- L'identifiant de session est stocké brut en base (borné à 12 h, révocable par `authVersion`, table réservée au rôle runtime).
 
 ## 4. Architecture d'ensemble
 
@@ -102,20 +142,20 @@ Les outils existants (Dependabot, Renovate, Snyk, Trivy, OWASP Dependency-Track)
 > - L'agent est identifié par son UUID **et** l'empreinte de sa clé publique.
 
 - **InstanceSettings** (singleton, géré par le super admin) : paramètres SMTP, sources de données, rétention de l'audit, et **quotas par défaut** des équipes. À la création d'une équipe, ces valeurs sont **copiées** dans l'équipe, puis le super admin peut les ajuster. Modifier les quotas par défaut n'affecte pas les équipes déjà créées.
-- **User** : email, hash Argon2id (nullable), second facteur (secret TOTP chiffré, nullable ; à défaut, code par email), passkeys (voir PasskeyCredential), statut, `roles` (rôles Symfony, voir §7bis), `loginEnabled`.
-  - **Compte complet** : `loginEnabled = true`, se connecte à la console.
-  - **Compte « notification seule »** : `loginEnabled = false`, sans mot de passe. Il reçoit les notifications des projets auxquels il est rattaché, avec un email vérifié par lien de confirmation et un lien de désinscription signé. Un `UserChecker` Symfony refuse toute connexion. Il peut être **promu** plus tard en compte complet par invitation, sans perdre ses rattachements.
+- **User** : email, hash Argon2id (nullable), second facteur (secret TOTP chiffré, nullable ; à défaut, code par email), passkeys (voir PasskeyCredential), statut (`active` ou `disabled`, jamais supprimé), statut de super admin (`isSuperAdmin`, traduit en `ROLE_SUPER_ADMIN` par la sécurité, voir §7bis), permissions d'instance (dont `account.login`), versions de session (`authVersion`, `trustedDeviceVersion`).
+  - **Compte complet** : il a la permission d'instance `account.login`, se connecte à la console.
+  - **Compte « notification seule »** : un vrai `User` **sans la permission `account.login`**, sans mot de passe. Il reçoit les notifications des projets auxquels il est rattaché, avec un email vérifié par lien de confirmation et un lien de désinscription signé. Un `UserChecker` Symfony refuse toute connexion. Il peut être **promu** plus tard en compte complet par invitation, sans perdre ses rattachements.
 - **PasskeyCredential** (appartient à un User, 0..N) : `uuid`, identifiant du credential WebAuthn, clé publique, compteur de signatures, transports, AAGUID, **nom** donné par l'utilisateur (« YubiKey bureau », « iCloud »…), dates de création et de dernière utilisation. Révocable individuellement par son propriétaire (et par le super admin). Enregistrement et révocation tracés dans l'audit.
 - **EmailLoginCode** : code à usage unique du second facteur par email, stocké **haché**, expiration courte (~10 min), nombre d'essais limité, invalidé dès usage ou à l'émission d'un nouveau code.
 - **Team** : `uuid`, `name`, `slug`, **quotas** (`maxProjects`, `maxAgents`, `maxMembers`, `maxEnvironmentsPerProject`, rétention des snapshots…), initialisés depuis les quotas par défaut de l'instance. Une valeur nulle signifie illimité. Les quotas sont modifiables uniquement par le super admin.
   - **Blocage strict** : toute action qui dépasserait un quota est refusée. C'est le cas de la création d'un projet, d'un environnement, d'un jeton d'enrôlement, de la validation d'un agent ou d'une invitation. Le message d'erreur est explicite et l'admin de l'équipe est invité à contacter le super admin.
   - Si le super admin baisse un quota sous l'usage actuel, rien n'est supprimé, mais toute nouvelle création est bloquée tant que l'équipe est au-dessus de la limite.
-- **TeamMembership** (`user`, `team`, `role` : `TEAM_ADMIN` / `TEAM_MEMBER` / `TEAM_VIEWER` / `TEAM_GUEST`, `extraPermissions[]`). Un utilisateur peut avoir des memberships dans plusieurs équipes.
-- **ProjectMembership** (`user`, `project`, `role` : `PROJECT_ADMIN` / `PROJECT_MEMBER` / `PROJECT_VIEWER`, `extraPermissions[]`). Elle sert aux utilisateurs limités à certains projets d'une équipe.
+- **TeamMembership** (`user`, `team`, `role` : `TEAM_ADMIN` / `TEAM_MEMBER` / `TEAM_VIEWER` / `TEAM_GUEST`, `extraPermissions[]`, `status` : `active` ou `suspended`). Une membership est suspendue quand le compte est désactivé, et restaurée à sa réactivation ; un membre suspendu ne compte ni pour `maxMembers` ni comme `TEAM_ADMIN`. Un utilisateur peut avoir des memberships dans plusieurs équipes.
+- **ProjectMembership** (`user`, `project`, `role` : `PROJECT_ADMIN` / `PROJECT_MEMBER` / `PROJECT_VIEWER`, `extraPermissions[]`, `status`). Elle sert aux utilisateurs limités à certains projets d'une équipe.
 - **PermissionGrant** (historique) : qui a accordé ou retiré quelle permission, à qui, sur quel périmètre, quand. Aussi tracé dans l'audit.
 
 > **Invariant** : une ProjectMembership exige une TeamMembership dans l'équipe du projet. Retirer quelqu'un d'une équipe supprime ses ProjectMemberships dans cette équipe.
-- **Invitation** : email, équipe ou projet cible, rôle, jeton haché, expiration, usage unique.
+- **Invitation** : email, équipe ou projet cible, rôle, jeton haché à usage unique, émise pour **7 jours** (l'expiration est calculée, jamais stockée), statut `pending` / `accepted` / `revoked`. Une seule invitation en attente par couple email + cible. Toujours un lien à accepter, même si le compte existe déjà.
 - **Project** (appartient à une Team) → **Environment**. Le **nom est entièrement libre** (« prod », « recette-client », « staging-eu »…), unique par projet. Un indicateur optionnel `isProduction` permet de durcir les seuils de notification par défaut.
 - **Host** (appartient à **une seule** Team) : hostname, OS, distribution, arch, dernière remontée. Il peut porter des AppInstances de plusieurs projets **de la même équipe**.
 - **CloudScope** (appartient à une seule Team) : périmètre cloud collecté sans hôte, par exemple un compte AWS + une région + une liste de clusters ECS. Il remplace le Host pour le mode `ecs`.
@@ -192,7 +232,7 @@ Ils sont réglés par le super admin pour chaque équipe. Leurs valeurs par déf
 | `maxProjects` | Projets de l'équipe | 10 | création de projet |
 | `maxEnvironmentsPerProject` | Environnements par projet | 3 | création d'environnement |
 | `maxAgents` | Agents **actifs** (`pending` + `approved`). Les `inactive` et `revoked` ne comptent pas. | 25 | création d'un jeton, enrôlement, validation |
-| `maxMembers` | Comptes **complets** membres de l'équipe (memberships d'équipe ou de projet) | 25 | invitation, ajout d'un membre |
+| `maxMembers` | Comptes **complets** membres actifs de l'équipe (un `TEAM_GUEST` compte) **+ invitations en attente non expirées** | 25 | invitation (à l'envoi et à l'acceptation) |
 | `maxNotificationOnlyAccounts` | Comptes « notification seule » rattachés à l'équipe | 50 | ajout d'un destinataire |
 | `maxNotificationChannels` | Canaux (webhooks, Slack, Teams…) de l'équipe et de ses projets | 5 | création de canal |
 | `maxReusableEnrollmentTokens` | Jetons d'enrôlement réutilisables **actifs** | 3 | création de jeton réutilisable |
@@ -203,7 +243,8 @@ Comportement :
 - **Blocage strict à 100 %** : l'action est refusée par le service métier, que la demande vienne de l'UI ou d'un agent, avec un message explicite (« Quota de 25 agents atteint, contactez l'administrateur de l'instance »).
 - **Avertissement à 80 %** : bandeau pour les admins de l'équipe et notification optionnelle au super admin. C'est une information, sans blocage.
 - Les admins de l'équipe voient leur **consommation** (jauges) dans les paramètres de l'équipe.
-- Le super admin n'est pas soumis aux quotas, mais les actions qu'il fait **dans** une équipe consomment le quota de cette équipe.
+- **Le super admin est soumis aux quotas** comme tout le monde : pour dépasser, il relève d'abord le quota de l'équipe (décision du 09/11/2026).
+- Une réactivation de compte peut faire dépasser `maxMembers` : rien n'est refusé, comme pour un quota abaissé.
 - Si un quota est abaissé sous l'usage actuel, rien n'est supprimé, mais toute nouvelle création est bloquée.
 
 ### Limites techniques de l'instance
@@ -561,7 +602,8 @@ Le même principe « liste de ce qui tourne + analyse de l'image par digest » s
   - qui, quoi, sur quoi, résultat, IP ;
   - refus tracés et distingués des erreurs serveur ;
   - **jamais le corps des requêtes** ;
-  - en **ajout seul** (triggers PostgreSQL qui refusent `UPDATE` et `DELETE`) ;
+  - en **ajout seul** : schéma `audit` dont le rôle runtime n'a que `INSERT` et `SELECT`, triggers PostgreSQL qui refusent `UPDATE`, `DELETE` et `TRUNCATE`, partitions mensuelles ;
+  - un refus est écrit **une seule fois**, qu'il vienne du firewall, d'un voter, d'une commande ou d'une requête ; un objet hors du périmètre de l'acteur répond 404, un objet visible sans la permission 403 ;
   - purge uniquement par une tâche de rétention configurée par l'exploitant.
 - **Auth** :
   - **connexion principale : email + mot de passe** (Argon2id), **toujours suivie d'un second facteur** :
@@ -573,7 +615,7 @@ Le même principe « liste de ce qui tourne + analyse de l'image par digest » s
     - credential découvrable (`residentKey: preferred`) et `userVerification: required`, pour que la passkey vaille à elle seule une authentification multifacteur ;
     - plusieurs passkeys par compte, nommées, révocables individuellement depuis le profil ;
     - vérification de l'origine (`rpId` = domaine de l'instance) et du compteur de signatures ;
-  - 2FA **obligatoire pour super admin, TEAM_ADMIN et PROJECT_ADMIN**. Tout second facteur est accepté, **y compris le code par email** (décision du 09/11/2026) ; TOTP et passkey restent proposés ;
+  - second facteur **à chaque connexion, pour tout le monde** (décision du 09/11/2026). Tout second facteur est accepté, **y compris le code par email**, admins compris ; TOTP et passkey restent proposés. « Faire confiance à cet appareil » le saute pendant 30 jours ;
   - enregistrement, révocation et usage des passkeys et du TOTP **tracés dans l'audit** ; échecs répétés limités (rate limiting par compte et par IP) ;
   - pas d'inscription libre : création de compte **sur invitation uniquement**. Pas de connexion via un fournisseur tiers (GitHub…) au MVP ;
   - sessions courtes, cookies `HttpOnly` / `Secure` / `SameSite=Strict` ;
@@ -585,7 +627,7 @@ Le même principe « liste de ce qui tourne + analyse de l'image par digest » s
 ### Principes
 
 - **3 niveaux** : instance, équipe, projet.
-- **Niveau instance = rôles Symfony natifs.** `ROLE_SUPER_ADMIN` est stocké dans `User.roles`, avec une `role_hierarchy` (`ROLE_SUPER_ADMIN: [ROLE_USER]`) et utilisable via `#[IsGranted('ROLE_SUPER_ADMIN')]` et `access_control`. Les rôles Symfony sont **globaux**, ils ne peuvent pas porter « admin de l'équipe 1 mais invité dans l'équipe 3 ». Les rôles d'équipe et de projet restent donc dans les memberships, et sont évalués par des voters.
+- **Niveau instance = rôles Symfony natifs.** Le statut de super admin a une source unique, le `User` du domaine (`isSuperAdmin`), traduit en `ROLE_SUPER_ADMIN` par la sécurité, avec une `role_hierarchy` (`ROLE_SUPER_ADMIN: [ROLE_USER]`) et utilisable via `#[IsGranted('ROLE_SUPER_ADMIN')]` et `access_control`. Les rôles Symfony sont **globaux**, ils ne peuvent pas porter « admin de l'équipe 1 mais invité dans l'équipe 3 ». Les rôles d'équipe et de projet restent donc dans les memberships, et sont évalués par des voters.
 - **Rôles d'équipe et de projet fixes** définis dans le code (enums PHP). Chaque rôle est un **lot de permissions par défaut**, tiré d'un catalogue de permissions.
 - **Permissions additionnelles** : on peut accorder individuellement une permission en plus du rôle (`extraPermissions` sur la membership), par exemple `project.create` à un `TEAM_MEMBER` ou `finding.accept_risk` à un `PROJECT_MEMBER`. Les ajouts sont uniquement additifs : pour retirer un droit, on change de rôle.
 - Les voters Symfony ne testent **que des permissions**, jamais des rôles. On pourra ainsi ajouter des rôles personnalisés plus tard sans toucher aux voters.
@@ -681,7 +723,9 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
 
 ### Règles de garde
 
-- Une équipe garde **au moins un `TEAM_ADMIN`**, et l'instance au moins un `ROLE_SUPER_ADMIN` actif.
+- Une équipe garde **au moins un `TEAM_ADMIN` actif** dès que son premier admin a accepté son invitation, et l'instance au moins un `ROLE_SUPER_ADMIN` actif. Le super admin peut désactiver le dernier admin d'une équipe, qui n'est alors plus gérée que par lui.
+- Ordre des rôles (décision du 09/11/2026) : `TEAM_ADMIN` > `TEAM_MEMBER` > `TEAM_VIEWER` > `TEAM_GUEST`, `PROJECT_ADMIN` > `PROJECT_MEMBER` > `PROJECT_VIEWER`. Un `TEAM_ADMIN` couvre tous les rôles projet de son équipe ; un `PROJECT_ADMIN` peut nommer un autre `PROJECT_ADMIN` mais ne touche jamais aux rôles d'équipe. Personne ne modifie ni ne retire un membre de rang supérieur au sien.
+- Un `TEAM_GUEST` qui n'a plus aucun projet **reste membre** (et compte dans `maxMembers`) jusqu'à son retrait explicite.
 - `ROLE_SUPER_ADMIN` ne peut être retiré que par un **autre** super admin (voir Principes).
 - Un utilisateur ne peut attribuer qu'un rôle **inférieur ou égal** au sien, et ne peut accorder **que des permissions qu'il détient lui-même** sur ce périmètre. Pas d'escalade de privilèges.
 - Une permission additionnelle ne peut être accordée que si elle est marquée ○ pour le rôle de la membership. Les permissions d'instance ne sont jamais accordables.
@@ -695,12 +739,12 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
 
 - `ROLE_SUPER_ADMIN` est géré par la sécurité Symfony native (`User.roles`, `role_hierarchy`, `access_control` sur `/admin`). Le `PermissionResolver` court-circuite tout pour ce rôle : toutes les permissions sont accordées. L'action reste tracée dans l'audit.
 - La règle « seul un autre super admin peut retirer le rôle » est appliquée dans le service métier de gestion des utilisateurs, et pas seulement dans l'UI.
-- Un `UserChecker` refuse la connexion des comptes `loginEnabled = false`.
+- Un `UserChecker` refuse la connexion d'un compte désactivé ou sans la permission d'instance `account.login`, avec un message générique.
 - Un `PermissionResolver` calcule une fois par requête les permissions effectives de l'utilisateur **par équipe et par projet**, à partir de `ROLE_SUPER_ADMIN`, des rôles et des `extraPermissions` des TeamMembership et ProjectMembership.
 - Une table de correspondance unique dans le code définit, pour chaque rôle, les permissions par défaut (✓) et les permissions accordables (○). Elle sert à la fois au resolver, à l'UI d'attribution et aux tests.
 - Les voters `TeamVoter`, `ProjectVoter`, `HostVoter` et `FindingVoter` délèguent au resolver.
 - Les requêtes Doctrine de listing sont **filtrées par périmètre**, via un filtre ou des repositories dédiés, pour qu'une liste ne fuite jamais d'objet hors périmètre.
-- Les **quotas** d'équipe sont vérifiés dans les services métier (création de projet, d'environnement, de jeton d'enrôlement, validation d'agent, invitation) et pas seulement dans l'UI. Le dépassement est **bloquant**, y compris pour un appel via l'API. Le super admin n'est pas soumis aux quotas, mais c'est lui qui les ajuste.
+- Les **quotas** d'équipe sont vérifiés dans les services métier (création de projet, d'environnement, de jeton d'enrôlement, validation d'agent, invitation) et pas seulement dans l'UI. Le dépassement est **bloquant**, y compris pour un appel via l'API, **et pour le super admin** : c'est lui qui les ajuste, avant d'agir.
 
 ## 8. Moteur d'analyse
 
