@@ -1,0 +1,9 @@
+{
+  "inventory_id": "019a6b31-5e00-7f12-a3b4-c5d6e7f80912",
+  "missing": [
+    "sha256:3b1f6c0e9a8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a19080",
+    "sha256:c0ffee0000000000000000000000000000000000000000000000000000000001"
+  ],
+  "next_poll_in": 300,
+  "server_time": "2026-11-09T08:01:53Z"
+}

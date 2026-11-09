@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:host-facts",
+  "title": "Host facts snapshot, media type application/vnd.depverify.host-facts+json;version=1 (protocol.md §8.1)",
+  "description": "Deterministic: no collection timestamp, arrays sorted (runtimes by name then path).",
+  "type": "object",
+  "required": ["format_version", "hostname", "os", "kernel", "arch", "runtimes", "docker", "agent"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "hostname": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "machine_id_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "os": { "$ref": "urn:depverify:protocol:v1:common#/$defs/os" },
+    "kernel": { "type": "string" },
+    "arch": { "enum": ["x86_64", "aarch64"] },
+    "runtimes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "path"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "enum": ["php", "php-fpm", "composer", "node", "npm", "yarn", "pnpm"] },
+          "version": { "type": "string" },
+          "path": { "$ref": "urn:depverify:protocol:v1:common#/$defs/absolutePath" },
+          "extensions": { "type": "array", "items": { "type": "string" }, "description": "PHP only: loaded extensions, sorted." },
+          "service": { "type": "string", "description": "php-fpm pool / systemd unit, e.g. php8.2-fpm." }
+        }
+      }
+    },
+    "docker": {
+      "description": "null when Docker is not readable (not installed, or not enabled for the agent).",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["engine_id", "engine_version"],
+          "additionalProperties": false,
+          "properties": {
+            "engine_id": { "type": "string" },
+            "engine_version": { "type": "string" },
+            "containerd_version": { "type": "string" },
+            "runc_version": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "agent": {
+      "type": "object",
+      "required": ["version", "mode"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "$ref": "urn:depverify:protocol:v1:common#/$defs/semver" },
+        "mode": { "enum": ["host", "container", "embedded", "ecs"] },
+        "scope": { "enum": ["compose", "labeled", "host"] },
+        "config_version": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

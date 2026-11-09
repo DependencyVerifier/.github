@@ -10,7 +10,7 @@ Differentiator: the source of truth is the **production machine**, not the repo 
 
 ## Full specification
 
-**`docs/cadrage.md` (French, in this repository) is the living source of truth.** Read the relevant section before designing or implementing anything; update it when a decision changes. UI charter: `docs/design.md`.
+**`docs/cadrage.md` (French, in this repository) is the living source of truth.** Read the relevant section before designing or implementing anything; update it when a decision changes. UI charter: `docs/design.md`. Agent ↔ console protocol v1 (normative, English): `docs/protocol.md`, machine-readable parts in `docs/protocol/` (schemas, examples, test vectors), checked by `docs/protocol/validate.py` in CI. Any protocol change updates the spec, schemas and examples together.
 
 | § | Topic |
 |---|---|
@@ -39,7 +39,7 @@ Differentiator: the source of truth is the **production machine**, not the repo 
 
 | Repository | Content |
 |---|---|
-| [`.github`](https://github.com/DependencyVerifier/.github) (this one) | `docs/cadrage.md` (spec, FR), `docs/design.md` (UI charter), `docs/brand/` (logo, favicon, og:image and GitHub social images), organization profile (`profile/README.md`) |
+| [`.github`](https://github.com/DependencyVerifier/.github) (this one) | `docs/cadrage.md` (spec, FR), `docs/design.md` (UI charter), `docs/protocol.md` (agent protocol v1), `docs/brand/` (logo, favicon, og:image and GitHub social images), organization profile (`profile/README.md`) |
 | [`console`](https://github.com/DependencyVerifier/console) | Symfony 8.x + PHP 8.5 (dunglas/symfony-docker, FrankenPHP), PostgreSQL, Twig + Symfony UX, Reprise + Vite (TypeScript only), Tailwind v4, UX Toolkit shadcn. DDD contexts (`Shared\`, `Identity\`, `Organization\`, `Fleet\`, `Inventory\`, `Vulnerability\`, `Exposure\`, `Notification\`, `Audit\`), CQRS on 3 Messenger buses, `Makefile`. Submodule `assets/romain-millan-tag` (footer signature) |
 | [`agent`](https://github.com/DependencyVerifier/agent) | Rust crate `depverify-agent` (static musl, rustls) |
 | [`agent-image`](https://github.com/DependencyVerifier/agent-image) | Dockerfile of `ghcr.io/dependencyverifier/agent` (built from `agent`) + Compose example |

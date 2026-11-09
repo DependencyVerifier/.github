@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:enrollment-request",
+  "title": "POST /agent/v1/enrollments — request (protocol.md §5.1)",
+  "type": "object",
+  "required": ["protocol_version", "enrollment_token", "public_key", "agent_version", "mode", "host"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": { "$ref": "urn:depverify:protocol:v1:common#/$defs/protocolVersion" },
+    "enrollment_token": { "type": "string", "minLength": 32, "maxLength": 256 },
+    "public_key": { "$ref": "urn:depverify:protocol:v1:common#/$defs/publicKey" },
+    "agent_version": { "$ref": "urn:depverify:protocol:v1:common#/$defs/semver" },
+    "mode": { "enum": ["host", "container", "embedded", "ecs"] },
+    "scope": { "enum": ["compose", "labeled", "host"] },
+    "compose_project": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "host": {
+      "type": "object",
+      "required": ["hostname", "os", "kernel", "arch"],
+      "additionalProperties": false,
+      "properties": {
+        "hostname": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "os": { "$ref": "urn:depverify:protocol:v1:common#/$defs/os" },
+        "kernel": { "type": "string" },
+        "arch": { "enum": ["x86_64", "aarch64"] },
+        "docker_engine_id": { "type": "string" },
+        "machine_id_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "mode": { "const": "container" } } },
+      "then": { "required": ["scope"] }
+    },
+    {
+      "if": { "properties": { "scope": { "enum": ["compose", "labeled"] } }, "required": ["scope"] },
+      "then": { "required": ["compose_project"] }
+    }
+  ]
+}

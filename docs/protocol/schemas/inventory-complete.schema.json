@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:inventory-complete",
+  "title": "POST /agent/v1/inventories/{inventory_id}/complete — request (protocol.md §8.4)",
+  "type": "object",
+  "required": ["protocol_version"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": { "$ref": "urn:depverify:protocol:v1:common#/$defs/protocolVersion" }
+  }
+}

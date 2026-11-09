@@ -30,3 +30,19 @@ jobs:
           for f in governance/rulesets/*.json; do
             python3 -m json.tool "$f" > /dev/null && echo "$f OK"
           done
+
+  protocol:
+    name: Validate the agent protocol
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    container: python:3.13-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install validators
+        run: pip install --quiet --root-user-action=ignore jsonschema==4.25.1 cryptography==46.0.3
+
+      - name: Schemas, examples and test vectors
+        run: python docs/protocol/validate.py

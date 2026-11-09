@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:inventory-manifest-response",
+  "title": "POST /agent/v1/inventories — 200 response (protocol.md §8.2)",
+  "type": "object",
+  "required": ["inventory_id", "missing", "next_poll_in", "server_time"],
+  "additionalProperties": false,
+  "properties": {
+    "inventory_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/uuid7" },
+    "missing": { "type": "array", "uniqueItems": true, "items": { "$ref": "urn:depverify:protocol:v1:common#/$defs/digest" } },
+    "next_poll_in": { "$ref": "urn:depverify:protocol:v1:common#/$defs/nextPollIn" },
+    "server_time": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" }
+  }
+}

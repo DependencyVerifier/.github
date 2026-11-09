@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:enrollment-response",
+  "title": "POST /agent/v1/enrollments — 201 / 200 response (protocol.md §5.2)",
+  "type": "object",
+  "required": ["agent_id", "status", "fingerprint", "console_key_id", "next_poll_in", "server_time"],
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/uuid7" },
+    "status": { "$ref": "urn:depverify:protocol:v1:common#/$defs/agentStatus" },
+    "fingerprint": { "$ref": "urn:depverify:protocol:v1:common#/$defs/fingerprint" },
+    "console_key_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/fingerprint" },
+    "next_poll_in": { "$ref": "urn:depverify:protocol:v1:common#/$defs/nextPollIn" },
+    "server_time": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:signed-order",
+  "title": "Signed order (protocol.md §7)",
+  "type": "object",
+  "required": ["order", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "order": {
+      "type": "object",
+      "required": ["order_id", "type", "agent_id", "issued_at", "not_before", "expires_at", "payload"],
+      "additionalProperties": false,
+      "properties": {
+        "order_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/uuid7" },
+        "type": { "enum": ["SCAN_NOW", "SET_CONFIG"] },
+        "agent_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/uuid7" },
+        "issued_at": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" },
+        "not_before": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" },
+        "expires_at": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" },
+        "payload": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "SCAN_NOW" } } },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/scanNowPayload" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "SET_CONFIG" } } },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/setConfigPayload" } } }
+        }
+      ]
+    },
+    "signature": {
+      "type": "object",
+      "required": ["alg", "key_id", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "alg": { "const": "ed25519" },
+        "key_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/fingerprint" },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$", "description": "base64url, no padding, of the 64-byte Ed25519 signature over JCS(order)." }
+      }
+    }
+  },
+  "$defs": {
+    "scanNowPayload": { "type": "object", "additionalProperties": false },
+    "setConfigPayload": {
+      "type": "object",
+      "required": ["config_version", "scan_interval_minutes", "discovery_roots", "declared_paths", "exclusions"],
+      "additionalProperties": false,
+      "properties": {
+        "config_version": { "type": "integer", "minimum": 1 },
+        "scan_interval_minutes": { "type": "integer", "minimum": 5, "maximum": 10080 },
+        "discovery_roots": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "urn:depverify:protocol:v1:common#/$defs/absolutePath" } },
+        "declared_paths": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "$ref": "urn:depverify:protocol:v1:common#/$defs/absolutePath" } },
+        "exclusions": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "$ref": "urn:depverify:protocol:v1:common#/$defs/absolutePath" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:common",
+  "title": "Shared definitions of the DependencyVerifier agent protocol v1",
+  "$defs": {
+    "protocolVersion": { "const": 1 },
+    "uuid7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "description": "RFC 3339, UTC, second precision, Z suffix.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "publicKey": { "type": "string", "pattern": "^ed25519:[A-Za-z0-9+/]{43}=$" },
+    "fingerprint": { "type": "string", "pattern": "^SHA256:[A-Za-z0-9+/]{43}$" },
+    "semver": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" },
+    "nextPollIn": { "type": "integer", "minimum": 30, "maximum": 3600 },
+    "absolutePath": { "type": "string", "pattern": "^/", "maxLength": 4096 },
+    "agentStatus": { "enum": ["pending", "approved"] },
+    "os": {
+      "type": "object",
+      "required": ["id", "version_id", "pretty_name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "os-release ID (debian, ubuntu, alpine, rocky…)." },
+        "version_id": { "type": "string" },
+        "pretty_name": { "type": "string" }
+      }
+    },
+    "snapshotRef": {
+      "type": "object",
+      "required": ["digest", "size", "media_type"],
+      "additionalProperties": false,
+      "properties": {
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 1, "description": "Uncompressed size in bytes." },
+        "media_type": {
+          "enum": [
+            "application/vnd.depverify.host-facts+json;version=1",
+            "application/vnd.cyclonedx+json;version=1.6"
+          ]
+        }
+      }
+    }
+  }
+}

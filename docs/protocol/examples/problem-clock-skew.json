@@ -1,0 +1,7 @@
+{
+  "type": "urn:depverify:problem:clock_skew",
+  "title": "Request signature is outside the accepted time window",
+  "status": 401,
+  "detail": "created is 412 s ahead of the server clock; the window is 300 s.",
+  "server_time": "2026-11-09T08:00:00Z"
+}

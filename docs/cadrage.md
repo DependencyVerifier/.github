@@ -287,6 +287,8 @@ C'est la **seule** exception à la validation humaine individuelle. Elle est exp
 
 ### Communication
 
+> Spécification normative du protocole agent ↔ console (v1) : [`protocol.md`](protocol.md), avec schémas JSON, exemples et vecteurs de test vérifiés par la CI.
+
 - **Sortante uniquement**, HTTPS, aucun port ouvert, compatible avec un proxy HTTP.
 - Chaque requête est **signée** par la clé de l'agent sur méthode, chemin, horodatage et hash du corps (inspiration : HTTP Message Signatures, RFC 9421). Aucun secret partagé ne transite.
 - L'agent récupère ses ordres par **polling**. L'intervalle est **dicté par la console** dans chaque réponse, avec gestion de `429` / `Retry-After` et un jitter aléatoire. Le protocole est prêt pour le long polling (voir §9bis).

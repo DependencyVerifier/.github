@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:poll-request",
+  "title": "POST /agent/v1/poll — request (protocol.md §6.1, §7.5)",
+  "type": "object",
+  "required": ["protocol_version", "agent_version", "order_results"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": { "$ref": "urn:depverify:protocol:v1:common#/$defs/protocolVersion" },
+    "agent_version": { "$ref": "urn:depverify:protocol:v1:common#/$defs/semver" },
+    "config_version": { "type": "integer", "minimum": 0 },
+    "order_results": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["order_id", "status", "finished_at"],
+        "additionalProperties": false,
+        "properties": {
+          "order_id": { "$ref": "urn:depverify:protocol:v1:common#/$defs/uuid7" },
+          "status": { "enum": ["executed", "failed", "rejected"] },
+          "reason": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+          "finished_at": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" }
+        },
+        "if": { "properties": { "status": { "enum": ["failed", "rejected"] } } },
+        "then": { "required": ["reason"] }
+      }
+    }
+  }
+}

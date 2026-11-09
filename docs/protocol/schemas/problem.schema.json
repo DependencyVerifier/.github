@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:problem",
+  "title": "Error response, RFC 9457 application/problem+json (protocol.md §9)",
+  "type": "object",
+  "required": ["type", "title", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "enum": [
+        "urn:depverify:problem:invalid_payload",
+        "urn:depverify:problem:unsupported_protocol_version",
+        "urn:depverify:problem:invalid_signature",
+        "urn:depverify:problem:invalid_digest",
+        "urn:depverify:problem:replayed_request",
+        "urn:depverify:problem:clock_skew",
+        "urn:depverify:problem:unknown_agent",
+        "urn:depverify:problem:agent_revoked",
+        "urn:depverify:problem:token_invalid",
+        "urn:depverify:problem:token_expired",
+        "urn:depverify:problem:agent_pending",
+        "urn:depverify:problem:scope_violation",
+        "urn:depverify:problem:not_found",
+        "urn:depverify:problem:missing_snapshots",
+        "urn:depverify:problem:payload_too_large",
+        "urn:depverify:problem:digest_mismatch",
+        "urn:depverify:problem:quota_exceeded",
+        "urn:depverify:problem:rate_limited"
+      ]
+    },
+    "title": { "type": "string" },
+    "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+    "detail": { "type": "string", "description": "Human-readable; never contains secrets or request bodies." },
+    "server_time": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" },
+    "missing": { "type": "array", "items": { "$ref": "urn:depverify:protocol:v1:common#/$defs/digest" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "urn:depverify:problem:clock_skew" } } },
+      "then": { "required": ["server_time"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "urn:depverify:problem:missing_snapshots" } } },
+      "then": { "required": ["missing"] }
+    }
+  ]
+}

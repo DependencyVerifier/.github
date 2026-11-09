@@ -1,0 +1,6 @@
+{
+  "type": "urn:depverify:problem:missing_snapshots",
+  "title": "Some snapshots of the inventory were not uploaded",
+  "status": 409,
+  "missing": ["sha256:c0ffee0000000000000000000000000000000000000000000000000000000001"]
+}

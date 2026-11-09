@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:poll-response",
+  "title": "POST /agent/v1/poll — 200 response (protocol.md §6.2)",
+  "type": "object",
+  "required": ["status", "orders", "next_poll_in", "server_time"],
+  "additionalProperties": false,
+  "properties": {
+    "status": { "$ref": "urn:depverify:protocol:v1:common#/$defs/agentStatus" },
+    "orders": { "type": "array", "maxItems": 20, "items": { "$ref": "urn:depverify:protocol:v1:signed-order" } },
+    "next_poll_in": { "$ref": "urn:depverify:protocol:v1:common#/$defs/nextPollIn" },
+    "server_time": { "$ref": "urn:depverify:protocol:v1:common#/$defs/timestamp" }
+  },
+  "if": { "properties": { "status": { "const": "pending" } } },
+  "then": { "properties": { "orders": { "maxItems": 0 } } }
+}
