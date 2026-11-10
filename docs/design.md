@@ -70,14 +70,14 @@ Radius: medium (`--radius` ≈ 0.5rem). Shadows: almost none; separation by bord
 - **Breadcrumb** above every object page.
 - **Object header**: square icon, title, subtitle ("Server in production", "PostgreSQL in project / env"), favorite star, `⋯` menu (dropdown: secondary and destructive actions), one primary button at most.
 - **Metadata grid**: bordered card split into cells, each with a muted label and a value (mono when technical), optional copy / edit icon buttons.
-- **Tabs** under the header for the object's sub-views.
+- **Tabs** under the header for the object's sub-views: **one URL per tab** (links, `<twig:TabNav>`, `aria-current="page"`, the look of the kit's `line` tabs), never content hidden client-side. A tab the actor may not open is not shown and its URL answers 403. The header's single primary action belongs to the current tab (team page: "New project" on Projects, "Invite member" on Members).
 - **Two columns** on wide screens: main content + narrow side panel of key facts.
-- **Dialogs** for creation forms (two-column fields when it helps), footer with Cancel + primary action.
+- **Dialogs** for creation forms (two-column fields when it helps), footer with Cancel + primary action. A dialog endpoint serves its form only to whom may submit it (404 out of scope, 403 without the permission). A destructive confirmation (delete a team) is a plain kit `Dialog` holding the field-less form.
 - **Empty states**: one sentence + primary action ("No project yet." / "Add project").
 - **Listings are DataTables** (server-side: paging, sort, search through the page URL), in a bordered card; actions of a row are small buttons or an inline role select in the last column. No client-side table of more than one page.
 - **Lazy zones** (quota gauges, audit log): a Turbo Frame rendered first as `skeleton` lines close to the final size, then filled; on failure an inline alert "Couldn't load this section" with **Retry**. Never a spinner over the whole page.
 - **After an action**: the form stays in place; a validation error re-renders it (422) with its values (never a password or a code); a success answers a Turbo Stream that refreshes the lists and gauges concerned and appends an `alert` at the top of the page, with no reload. Refusals (quota, last admin, permission) use the same alert, in destructive style.
-- **Quota gauges**: native `<meter>` per quota (usage / limit, "Unlimited" when empty), a warning banner from 80 %, and a destructive one at 100 % ("Quota of N … reached, contact the instance administrator").
+- **Quota gauges**: one row per quota, label then "3 of 5" in tabular figures, then a native `<meter class="quota-meter">` drawn as a thin bar by `assets/styles/meter.css` (`data-state` ok / warning / reached → `--status-ok` / `--status-warning` / `--destructive`; no inline style under the CSP). Banners above them: warning from 80 %, destructive at 100 % ("the limit of N is reached, contact the instance administrator"). Quotas whose feature is not there yet are folded under a `<details>`, limits only.
 - **Sidebar logo**: the application logo at the top of the sidebar, above the team switcher; the switcher lists the user's teams with their role.
 - **Footer** (`AppFooter`, every layout): copyright on the left, "Made by" + the Romain MILLAN tag on the right (Romain-MILLAN-Tag git submodule, muted color in both themes).
 

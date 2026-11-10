@@ -33,6 +33,8 @@ Working agreement:
 | `console` `2827c39` | Email change confirmed by a link sent to the new address (CI not checked yet) |
 | `console` `0c3a914` | Email change: own re-authenticated dialog, refused on a super admin, reset and setup links to the previous address closed at confirmation |
 | `console` `fe74b1f` | Team creation: first admin picked with an account autocomplete (`symfony/ux-autocomplete`) and admitted at once; unknown email invited by Identity in the same transaction (`AccountProvisioning` port) |
+| `console` `ccaf575` `d0e5f1b` | Account picker shown as a single input above its dialog; cascade deletion of a team from `/admin/teams` (decision 16) |
+| `console` `a8fefa6` | Team page in 4 tabs with their own URL (Overview, Projects, Members, Settings), creation forms in guarded dialogs, styled quota gauges |
 | `.github` `d84291d` | Step 1 decisions recorded in `cadrage.md` and `design.md` |
 | `.github` `a2aa389` | `scripts/workspace.sh` |
 
@@ -47,24 +49,23 @@ Decided with the developer during the implementation; not all of them are in `ca
 - **User deletion**: soft delete, two distinct states. `Deleted` = deactivated and hidden from the list, `Restore` brings it back as deactivated (reactivation stays explicit). Never oneself, never the last super admin.
 - **User edit**: display name (100 characters, shown in the list and the sidebar), instance role only (super admin buttons, re-authenticated). The email has its own "Change email" dialog (`/admin/users/{userId}/email`, re-authenticated, refused on a super admin: revoke the role first), applied only once confirmed from a 24-hour link sent to the new address; every session revoked, alert to the previous address, open reset and setup links closed.
 - **Team creation with an autocomplete on the instance accounts** (done, `fe74b1f`; decision 12 of `cadrage.md`): an existing account becomes `TEAM_ADMIN` directly (alert email, no invitation to accept); an unknown email creates the account by invitation (7-day setup link) and makes it `TEAM_ADMIN` directly.
-- **Team page in 4 tabs** (not done yet), each its own URL, redesigned with the `impeccable` skill: Overview (readable quota gauges, alerts, shortcuts), Projects, Members (members + pending invitations), Settings (name). Creation forms in modals.
+- **Team page in 4 tabs** (done), each its own URL, redesigned with the `impeccable` skill: Overview (readable quota gauges, alerts, shortcuts), Projects, Members (members + pending invitations), Settings (name). Creation forms in modals.
 
-## Next task: team page in 4 tabs (`console`)
+## Next task: UI to grant / revoke extra permissions (`console`)
 
-Item 1 of the backlog below, not started.
+First remaining item of the plan below, not started.
 
 ## Backlog
 
 In this order, unless decided otherwise:
 
-1. **Team page in 4 tabs** with `impeccable` (decision above). The current page stacks every list and its quota bars are raw `<meter>`s.
-2. Remaining items of the plan:
+1. Remaining items of the plan:
    - UI to grant / revoke extra permissions (commands and tests exist, route `TEAM_MEMBER_EXTRA` has no controller);
    - "Re-sync memberships" button in `/admin/users`;
    - team audit page (`/teams/{teamId}/audit`) and global audit (`/admin/audit`);
    - concurrency tests (quota, last admin);
    - check the CSP / DataTables / Turbo behaviours in a real browser.
-3. Record the decisions above in `docs/cadrage.md` (§3, §7, §7bis) and `docs/design.md` (§5, §6).
-4. Open questions for the developer:
+2. Record the decisions above in `docs/cadrage.md` (§3, §7, §7bis) and `docs/design.md` (§5, §6).
+3. Open questions for the developer:
    - `RoleAuthority` only treats `TEAM_ADMIN` as covering project roles: should a `TEAM_MEMBER` count as `PROJECT_MEMBER` and a `TEAM_VIEWER` as `PROJECT_VIEWER` for the rank (today the ○ `project.members.manage` of a `TEAM_MEMBER` only works on projects where they also have a project role)?
    - Pin the Compose project name in `console/compose.yaml` (`name: depverifier-console`): every checkout named `console` shares the project `console`, so another checkout's containers can replace these ones (it happened once).
