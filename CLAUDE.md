@@ -44,7 +44,7 @@ Differentiator: the source of truth is the **production machine**, not the repo 
 | [`agent`](https://github.com/DependencyVerifier/agent) | Rust crate `depverify-agent` (static musl, rustls) |
 | [`agent-image`](https://github.com/DependencyVerifier/agent-image) | Dockerfile of `ghcr.io/dependencyverifier/agent` (built from `agent`) + Compose example |
 
-Each repository has its own `CLAUDE.md` with stack details and commands. Locally, clone them side by side in one folder.
+Each repository has its own `CLAUDE.md` with stack details and commands. Locally, clone them side by side in one folder: `scripts/workspace.sh` does it over SSH (and pulls them later, never over local changes), then installs them (`--pull-only` to skip the installation).
 
 ## Conventions
 

@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
 
       - name: ShellCheck
-        run: shellcheck governance/*.sh
+        run: shellcheck governance/*.sh scripts/*.sh
 
       - name: Validate rulesets
         run: |
