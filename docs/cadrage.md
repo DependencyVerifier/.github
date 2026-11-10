@@ -99,7 +99,7 @@ Socle Identity, Organization et Audit. Le détail et les tests associés sont da
 13. Ordre des rôles : `TEAM_ADMIN` > `TEAM_MEMBER` > `TEAM_VIEWER` > `TEAM_GUEST` et `PROJECT_ADMIN` > `PROJECT_MEMBER` > `PROJECT_VIEWER` ; on peut attribuer un rôle égal au sien ; un `TEAM_ADMIN` couvre tous les rôles projet de son équipe ; un `PROJECT_ADMIN` ne touche jamais aux rôles d'équipe.
 14. Invitation sur un projet sans être dans l'équipe : l'acceptation crée aussi une TeamMembership `TEAM_GUEST`. Invitation de 7 jours, renvoyable (3 / h par invitation, 30 / h par équipe) et révocable ; quota `maxMembers` vérifié à l'envoi et à l'acceptation.
 15. Quotas : le super admin est bloqué lui aussi (corrige §5ter et §7bis).
-16. Suppressions : comptes désactivés, jamais supprimés ; projet ou environnement supprimé seulement s'il est vide ; suppression d'équipe et effacement RGPD reportés.
+16. Suppressions : comptes désactivés, jamais supprimés ; projet ou environnement supprimé seulement s'il est vide ; **équipe supprimée en cascade** par le super admin (`team.delete`, confirmation simple depuis `/admin/teams`) : ses projets, environnements et adhésions partent avec elle, ses invitations en attente sont révoquées, l'historique des droits et le journal d'audit restent ; effacement RGPD reporté.
 
 **Audit et exécution**
 17. L'audit enregistre les commandes métier (succès et échec), les refus d'accès (404 et 403) et les événements d'authentification, pas les lectures réussies. Une création est auditée **sur son parent** (projet sur l'équipe, environnement sur le projet), pour qu'un refus garde la portée de l'équipe.
