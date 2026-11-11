@@ -35,6 +35,9 @@ Working agreement:
 | `console` `fe74b1f` | Team creation: first admin picked with an account autocomplete (`symfony/ux-autocomplete`) and admitted at once; unknown email invited by Identity in the same transaction (`AccountProvisioning` port) |
 | `console` `ccaf575` `d0e5f1b` | Account picker shown as a single input above its dialog; cascade deletion of a team from `/admin/teams` (decision 16) |
 | `console` `a8fefa6` | Team page in 4 tabs with their own URL (Overview, Projects, Members, Settings), creation forms in guarded dialogs, styled quota gauges |
+| `console` `abcf7ad` `bfa24bf` `1d58c2e` | Log out from the menu item itself; extra permissions dialog (atomic change); team sections in the sidebar, current team marked |
+| `console` `07dc1fb` | Project page in sections, calmer DataTables (card, always-on search), ⋯ row menus, sidebar team / project groups, creation buttons disabled by quota (Turbo refresh), Enter submits dialogs |
+| `console` `0f56418` | Members + pending invitations everywhere (project, `/admin/users`), member search by email (`MatchAccounts`), Re-sync memberships, audit pages (`/admin/audit`, `/teams/{id}/audit`; non-UTF-8 cursor answered 422), rank rules (TEAM_MEMBER as PROJECT_MEMBER, team members removed from a project by a TEAM_ADMIN only), team lock test with two PostgreSQL sessions, Compose project `depverifier-console` |
 | `.github` `d84291d` | Step 1 decisions recorded in `cadrage.md` and `design.md` |
 | `.github` `a2aa389` | `scripts/workspace.sh` |
 
@@ -51,21 +54,17 @@ Decided with the developer during the implementation; not all of them are in `ca
 - **Team creation with an autocomplete on the instance accounts** (done, `fe74b1f`; decision 12 of `cadrage.md`): an existing account becomes `TEAM_ADMIN` directly (alert email, no invitation to accept); an unknown email creates the account by invitation (7-day setup link) and makes it `TEAM_ADMIN` directly.
 - **Team page in 4 tabs** (done), each its own URL, redesigned with the `impeccable` skill: Overview (readable quota gauges, alerts, shortcuts), Projects, Members (members + pending invitations), Settings (name). Creation forms in modals.
 
-## Next task: UI to grant / revoke extra permissions (`console`)
+## Next task: none planned in step 1
 
-First remaining item of the plan below, not started.
+Step 1 (Identity, Organization, Audit) is complete. Next: step 2, Fleet (hosts, agents, enrollment, signed agent API, orders).
 
 ## Backlog
 
+Concurrency: the quota and the last team admin rely on the team row lock taken first by every command (`TeamLockTest`, two real sessions) and on the order "lock, then count" of each handler (`LocksAndRanksTest`). A test dispatching two real commands in parallel was ruled out: its audit entries would be committed in the append-only log of the test database and break the counts of other tests.
+
 In this order, unless decided otherwise:
 
-1. Remaining items of the plan:
-   - UI to grant / revoke extra permissions (commands and tests exist, route `TEAM_MEMBER_EXTRA` has no controller);
-   - "Re-sync memberships" button in `/admin/users`;
-   - team audit page (`/teams/{teamId}/audit`) and global audit (`/admin/audit`);
-   - concurrency tests (quota, last admin);
-   - check the CSP / DataTables / Turbo behaviours in a real browser.
-2. Record the decisions above in `docs/cadrage.md` (§3, §7, §7bis) and `docs/design.md` (§5, §6).
-3. Open questions for the developer:
-   - `RoleAuthority` only treats `TEAM_ADMIN` as covering project roles: should a `TEAM_MEMBER` count as `PROJECT_MEMBER` and a `TEAM_VIEWER` as `PROJECT_VIEWER` for the rank (today the ○ `project.members.manage` of a `TEAM_MEMBER` only works on projects where they also have a project role)?
-   - Pin the Compose project name in `console/compose.yaml` (`name: depverifier-console`): every checkout named `console` shares the project `console`, so another checkout's containers can replace these ones (it happened once).
+1. Check the CSP / DataTables / Turbo behaviours in a real browser on a fresh profile (largely done through Playwright during the UI work; the Vite HMR websocket is blocked by the CSP when the dev ports are remapped).
+2. Clean up the old Compose volumes `console_*` once the `depverifier-console_*` copies are confirmed (`docker volume rm console_database_data console_caddy_data console_caddy_config`).
+
+Decided on 2026-11-11 (recorded in `cadrage.md` and `design.md`): a `TEAM_MEMBER` ranks as a `PROJECT_MEMBER` in its team's projects; a `PROJECT_ADMIN` never removes a member of the team from a project; the Compose project name is pinned (`depverifier-console`).
