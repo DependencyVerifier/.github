@@ -245,6 +245,7 @@ Subjects:
 | `compose_service` | `compose:<project>/<service>` | `compose_project`, `service`, `container_ids`, `image_id`, optional `labels` (the `dev.depverify.*` labels found: `name`, `environment`, `paths`) |
 | `container` | `container:<name>` | standalone container: `container_name`, `container_id`, `image_id` |
 | `container_image` | `image:<image id>` | `image_id` (`sha256:…`, also for local builds), `repo_digests`, `tags`, `provenance` (`registry` · `local-build`), optional `base_image` |
+| `host` | `host` | none: the SBOM lists the OS packages of the host itself (dpkg, rpm, apk). At most one, sent only by an agent that sees the host (mode `host`, or `container` with scope `host`). |
 
 An application subject running in a container references its image by `image_id`; the image's own packages are in the `container_image` subject's SBOM, analysed once per image id (§6bis of the cadrage).
 
@@ -265,7 +266,7 @@ Response `200 OK`: `inventory_id`, `missing` (digests the console does not have 
 
 - `409 missing_snapshots` (with the list) if a digest from `missing` was not uploaded.
 - `202 Accepted` otherwise: the console stores the inventory and processes it asynchronously (diff, matching, notifications). The API itself does no matching.
-- Scope guard: for `compose` / `labeled` scopes, a subject whose `compose_project` differs from the enrolled one makes the whole inventory rejected (`403 scope_violation`, audited).
+- Scope guard: for `compose` / `labeled` scopes, a subject whose `compose_project` differs from the enrolled one, or a `host` subject, makes the whole inventory rejected (`403 scope_violation`, audited). The console checks it on the manifest already, before anything is stored.
 - A manifest not completed within 1 hour is discarded.
 
 ### 8.5 CycloneDX profile

@@ -11,6 +11,15 @@
   },
   "subjects": [
     {
+      "subject_key": "host",
+      "kind": "host",
+      "sbom": {
+        "digest": "sha256:c0ffee0000000000000000000000000000000000000000000000000000000004",
+        "size": 61204,
+        "media_type": "application/vnd.cyclonedx+json;version=1.6"
+      }
+    },
+    {
       "subject_key": "compose:shop/php",
       "kind": "compose_service",
       "compose_project": "shop",

@@ -24,8 +24,8 @@
         "type": "object",
         "required": ["subject_key", "kind", "sbom"],
         "properties": {
-          "subject_key": { "type": "string", "pattern": "^(path|compose|container|image):.+$", "maxLength": 4200 },
-          "kind": { "enum": ["path", "compose_service", "container", "container_image"] },
+          "subject_key": { "type": "string", "pattern": "^(host|(path|compose|container|image):.+)$", "maxLength": 4200 },
+          "kind": { "enum": ["path", "compose_service", "container", "container_image", "host"] },
           "sbom": {
             "allOf": [
               { "$ref": "urn:depverify:protocol:v1:common#/$defs/snapshotRef" },
@@ -37,7 +37,8 @@
           { "$ref": "#/$defs/pathSubject" },
           { "$ref": "#/$defs/composeServiceSubject" },
           { "$ref": "#/$defs/containerSubject" },
-          { "$ref": "#/$defs/containerImageSubject" }
+          { "$ref": "#/$defs/containerImageSubject" },
+          { "$ref": "#/$defs/hostSubject" }
         ]
       }
     }
@@ -115,6 +116,17 @@
         "tags": { "type": "array", "items": { "type": "string" } },
         "provenance": { "enum": ["registry", "local-build"] },
         "base_image": { "type": "string" }
+      }
+    },
+    "hostSubject": {
+      "type": "object",
+      "description": "The OS packages of the host itself (dpkg, rpm, apk). Sent only by an agent that sees the host: mode host, or container with scope host.",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "subject_key": { "const": "host" },
+        "kind": { "const": "host" },
+        "sbom": true
       }
     }
   }
