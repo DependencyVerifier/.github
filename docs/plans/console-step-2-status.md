@@ -14,6 +14,9 @@ Resume on another machine and working agreement: see [step 1 status](console-ste
 | `console` `e4dbf9a` | Lot 4, UI: team sections Hosts / Agents / Enrollment, token shown once with the Compose snippet, agent approval comparing the fingerprint, revocations, host deletion, `/admin/agents`, enforced `max_agents` / `max_reusable_enrollment_tokens` gauges; team deletion under the fleet lock (security review) |
 | `console` `ec1c8c4` | Lot 5, orders: Scan now (1 / 5 min), Configure (`SET_CONFIG`, team minimum interval), agent page with its orders, `make fleet-maintain`; single-use token form without the reusable fields, stable list order |
 
+| `console` `a7a99b2` | Fleet context in the console `CLAUDE.md` |
+| `console` `dd948dd` | Dev fake agent: `make fleet-fake-agent` (enroll, poll, run), protocol v1 as the agent must speak it |
+
 ## Decisions taken after the plan
 
 Recorded in `cadrage.md` (decisions 21 to 34) and `design.md`:
@@ -26,7 +29,7 @@ Recorded in `cadrage.md` (decisions 21 to 34) and `design.md`:
 
 ## Next task: browser check, then step 3
 
-1. Check the Fleet pages in a real browser (`admin@depverify.localhost`): enrollment dialog (no sideways scroll), token list statuses, agent approval, agent page, Configure dialog. A fake agent for the local demo is still to write (`make fleet-fake-agent`, reusing `tests/Fleet/Support/AgentClient`).
+1. Check the Fleet pages in a real browser (`admin@depverify.localhost`): enrollment dialog (no sideways scroll), token list statuses, agent approval, agent page, Configure dialog. Drive a demo agent with `make fleet-fake-agent a='enroll --token=dvet_…'`, then `a='run --polls=10'`.
 2. Step 3, Inventory: the 3 inventory endpoints of protocol §8 (manifest, snapshot upload, complete), CycloneDX storage, hosts ↔ projects links (a `TEAM_GUEST` then sees the hosts of its projects).
 
 ## Backlog
