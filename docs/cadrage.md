@@ -113,6 +113,30 @@ Socle Identity, Organization et Audit. Le détail et les tests associés sont da
 - Qui connaît un mot de passe peut bloquer le second facteur de ce compte pendant 24 h, et, derrière un NAT, la fenêtre IP du second facteur des collègues pendant 15 min.
 - L'identifiant de session est stocké brut en base (borné à 12 h, révocable par `authVersion`, table réservée au rôle runtime).
 
+### Décisions du step 2 de la console : Fleet (11/11/2026)
+
+Cœur de Fleet, sans installeur (`install.sh` et miroir des binaires attendent une release de l'agent) ni inventaire. Le détail est dans le plan du step ; ce qui suit engage la suite.
+
+**Jetons et enrôlement**
+21. Jeton `dvet_` + 43 caractères base64url (256 bits), stocké haché (HMAC + pepper), affiché une seule fois, jamais audité.
+22. Jeton **à usage unique** : valable **1 heure**, 1 agent, consommé au premier enrôlement réussi ; rien à régler. Jeton **réutilisable** : environnement par défaut, expiration (90 jours au plus) et nombre maximal d'agents (1 à 10 000) obligatoires ; `pending → approved → revoked`. Seuls les enrôlements faits **après** sa validation donnent des agents `approved`.
+23. Quota `maxAgents` : compte les agents `pending` et `approved` (un jeton inutilisé ne réserve pas de place) ; il bloque la création de jeton et l'enrôlement (`quota_exceeded`, 409), et la validation d'un agent si l'équipe est au-dessus de sa limite. `maxReusableEnrollmentTokens` compte les jetons réutilisables actifs (ni révoqués, ni expirés, ni épuisés). Tout comptage se fait sous un verrou de flotte par équipe (`fleet.team:<id>`), y compris l'effacement d'une équipe supprimée.
+24. Hôte créé ou retrouvé à l'enrôlement, par équipe : moteur Docker pour un agent conteneur, machine-id pour un agent hôte, chacun se rabattant sur l'autre puis sur le nom d'hôte. Un ré-enrôlement (volume perdu) crée un nouvel agent sur le même hôte. Un hôte se supprime quand tous ses agents sont révoqués (il emporte ces agents et leurs ordres).
+25. Modes acceptés : `host` et `container` (portées `compose`, `labeled`, `host`). `embedded` et `ecs` répondent `invalid_payload`.
+26. Un environnement par défaut d'un jeton utilisable ne peut pas être supprimé. Une équipe supprimée emporte sa flotte (ordres, agents, hôtes, jetons) dans la même transaction ; ses agents reçoivent ensuite `unknown_agent` et s'arrêtent.
+
+**Agents et protocole**
+27. Statuts `pending`, `approved`, `inactive` (7 jours sans requête valide ; la suivante le réactive si le quota le permet), `revoked` (définitif : une nouvelle installation, donc une nouvelle clé, est nécessaire). Refuser un agent en attente, c'est le révoquer. Un agent `inactive` depuis 30 jours de plus est **révoqué** plutôt que supprimé : son historique et l'audit restent.
+28. Clé de la console : `APP_AGENT_SIGNING_KEY` (graine Ed25519 en base64), en échec fermé hors dev et test ; en changer impose de réinstaller tous les agents.
+29. Vérification des requêtes dans l'ordre du protocole §4.3 par un pare-feu sans session (`^/agent/v1`) ; l'enrôlement vérifie lui-même la preuve de possession. `@target-uri` est reconstruit depuis la requête : derrière un proxy, `SYMFONY_TRUSTED_PROXIES` est requis. Jamais de redirection ni de page HTML sous `/agent/v1` : toute erreur est un `application/problem+json`.
+30. Limites : 60 requêtes / min par agent, comptées **après** vérification de la signature (un `keyid` forgé n'épuise pas la fenêtre d'un agent) ; 20 enrôlements / h par IP (force brute sur les jetons). `next_poll_in` : 60 s en attente, 300 s une fois validé ; pas encore de long polling.
+31. Audit : enrôlements, gestes de l'interface et refus de requêtes agent (endpoint, `keyid` annoncé, raison, IP ; jamais le corps). Un poll ordinaire n'écrit rien (une entrée toutes les 5 min par agent noierait le journal).
+
+**Ordres**
+32. Cycle `queued → delivered → executed | failed | rejected`, `expired` 60 s après l'échéance sans résultat, `cancelled` à la révocation de l'agent. Signé à la première livraison (`issued_at = now`, `expires_at = +15 min`), relivré avec la même signature jusqu'à son résultat ; un ordre expiré n'est jamais relivré. Au plus 20 ordres par réponse.
+33. `SCAN_NOW` : 1 par agent toutes les 5 minutes. `SET_CONFIG` : configuration souhaitée par agent, `config_version` croissante, intervalle jamais sous le `minScanIntervalMinutes` de l'équipe ; un `SET_CONFIG` pas encore signé est annulé par le suivant, et le poll remet en file la configuration d'un agent qui rapporte une version inférieure.
+34. Maintenance `app:fleet:maintain` (cron, par lots) : agents inactifs, révocation des inactifs anciens, ordres expirés, nonces de plus de 10 minutes.
+
 ## 4. Architecture d'ensemble
 
 ```
@@ -259,7 +283,7 @@ Ce ne sont pas des quotas d'équipe. Elles sont réglées dans InstanceSettings 
 | Rétention du journal d'audit | 365 jours |
 | Durée max d'un jeton d'enrôlement réutilisable | 90 jours |
 | Agents sans remontée avant passage en `inactive` | 7 jours |
-| Purge des agents `inactive` | 30 jours après passage en `inactive` |
+| Révocation des agents `inactive` | 30 jours après passage en `inactive` (décision 27) |
 
 ## 6. L'agent
 
@@ -322,7 +346,7 @@ Pour les infrastructures qui créent des machines ou des conteneurs seules (ECS 
 - Une fois le jeton validé, chaque agent enrôlé avec lui passe directement en `approved`. L'empreinte de l'agent, son hôte et le jeton utilisé sont **tracés dans l'audit**, et une notification « nouvel agent auto-validé » est envoyée selon les règles de l'équipe.
 - **Révoquer le jeton** bloque tout nouvel enrôlement. Une option permet de révoquer **en même temps tous les agents** enrôlés avec lui.
 - Les agents restent soumis au quota `maxAgents`. À la limite, l'enrôlement est refusé.
-- Agents disparus (instance détruite) : après 7 jours sans remontée, ils passent en `inactive` et ne comptent plus dans le quota. Ils sont purgés 30 jours plus tard (limites d'instance, §5ter).
+- Agents disparus (instance détruite) : après 7 jours sans remontée, ils passent en `inactive` et ne comptent plus dans le quota. Ils sont révoqués 30 jours plus tard (limites d'instance, §5ter ; décision 27).
 
 C'est la **seule** exception à la validation humaine individuelle. Elle est explicite, bornée et tracée.
 

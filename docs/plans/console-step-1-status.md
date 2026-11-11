@@ -56,7 +56,7 @@ Decided with the developer during the implementation; not all of them are in `ca
 
 ## Next task: none planned in step 1
 
-Step 1 (Identity, Organization, Audit) is complete. Next: step 2, Fleet (hosts, agents, enrollment, signed agent API, orders).
+Step 1 (Identity, Organization, Audit) is complete. Step 2, Fleet: see [its status](console-step-2-status.md).
 
 ## Backlog
 
