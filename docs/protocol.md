@@ -271,7 +271,7 @@ Response `200 OK`: `inventory_id`, `missing` (digests the console does not have 
 
 ### 8.5 CycloneDX profile
 
-- `bomFormat: "CycloneDX"`, `specVersion: "1.6"`, `serialNumber`: `urn:uuid:` + the inventory id, `version: 1`.
+- `bomFormat: "CycloneDX"`, `specVersion: "1.6"`, `version: 1`, **no `serialNumber`**: an identifier that changes with each inventory would change the digest of unchanged content and defeat the deduplication of §8.1.
 - `metadata.component`: the subject (type `application` or `container`, `name`, `bom-ref` = `subject_key`).
 - Every component has a `purl`: `pkg:deb/debian/openssl@3.5.1-1?arch=amd64&distro=debian-13`, `pkg:rpm/…`, `pkg:apk/alpine/…`, `pkg:composer/symfony/http-kernel@6.4.3`, `pkg:npm/%40hotwired/turbo@8.0.23`.
 - Properties, namespace `depverify:`:

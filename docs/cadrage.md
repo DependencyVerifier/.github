@@ -137,6 +137,25 @@ Cœur de Fleet, sans installeur (`install.sh` et miroir des binaires attendent u
 33. `SCAN_NOW` : 1 par agent toutes les 5 minutes. `SET_CONFIG` : configuration souhaitée par agent, `config_version` croissante, intervalle jamais sous le `minScanIntervalMinutes` de l'équipe ; un `SET_CONFIG` pas encore signé est annulé par le suivant, et le poll remet en file la configuration d'un agent qui rapporte une version inférieure.
 34. Maintenance `app:fleet:maintain` (cron, par lots) : agents inactifs, révocation des inactifs anciens, ordres expirés, nonces de plus de 10 minutes.
 
+### Décisions du step 3 de la console : Inventory (11/11/2026)
+
+Réception, stockage et normalisation des inventaires envoyés par l'agent (protocole §8), et leur affichage. Ni matching, ni diff entre inventaires, ni sources Git / CI / upload. Le détail est dans le plan du step.
+
+**Protocole et réception**
+35. Sujet `kind: host` (paquets OS de l'hôte, `subject_key: host`), envoyé par un agent `host` ou un agent `container` en portée `host`, jamais en portée `compose` / `labeled`. Le SBOM n'a **pas de `serialNumber`** : un identifiant changeant à chaque inventaire changerait le digest d'un contenu identique et annulerait la déduplication.
+36. Snapshots stockés dans PostgreSQL (`bytea` gzip), **dédupliqués par (équipe, digest)** : une équipe n'apprend jamais qu'une autre détient un document. `inventory_id` choisi par l'agent ; rejouer le même manifeste est idempotent ; le même id venant d'un autre agent est `invalid_payload`.
+37. Garde de portée vérifiée **dès le manifeste** (rien n'est stocké) et à `complete` : en portée `compose` / `labeled`, seuls les services du projet Compose enrôlé et leurs images ; un écart rejette tout l'inventaire (`403 scope_violation`, audité). Un agent en attente reçoit `403 agent_pending` sur les trois endpoints.
+38. Envoi d'un snapshot : 20 Mio compressés au plus (limite par route, aussi dans Caddy), décompression en flux arrêtée à 200 Mo (`payload_too_large`), SHA-256 des octets décompressés égal au digest (`422 digest_mismatch`), format vérifié (CycloneDX 1.6 dont `metadata.component.bom-ref` = `subject_key`, faits d'hôte `format_version` 1).
+39. `complete` : `409 missing_snapshots` (liste des digests) tant qu'il en manque, sinon `202` et un message `ProcessInventory` dans la file asynchrone `ingest` (transport Doctrine, service `worker`). L'API ne parse rien d'autre. Audit : le manifeste, le `complete` et le traitement, jamais chaque envoi de snapshot.
+
+**Traitement**
+40. Un sujet `path`, `compose_service` ou `container` devient une **application** (AppInstance) d'identité (hôte, `subject_key`) ; un `container_image` une image d'identité (équipe, `image_id`) ; un `host` le SBOM OS de l'hôte. Les paquets d'un SBOM sont extraits **une fois par blob** (purl, écosystème, nom, version, direct ou transitif, gestionnaire). Une application absente du dernier inventaire de l'agent qui la rapporte devient `gone` et garde son historique ; plusieurs agents sur un même hôte ne se l'enlèvent pas.
+41. Rattachement automatique : label `dev.depverify.environment` s'il désigne un environnement de l'équipe, sinon l'environnement par défaut du jeton si l'hôte ne porte qu'une application, sinon « non rattachée ». Un rattachement ou un détachement manuel (`project.apps.assign`, sur le projet cible **et** sur le projet actuel) n'est jamais écrasé. L'équipe de l'environnement est celle de l'application : vérifié par le handler et par un trigger PostgreSQL.
+42. Historique : un enregistrement par sujet et par inventaire, purgé au-delà de `snapshotRetentionDays` en gardant le dernier de chaque sujet ; blobs orphelins supprimés ; inventaires non complétés en 1 h abandonnés. Commande `make inventory-maintain` (cron).
+
+**Visibilité**
+43. Un membre de l'équipe (hors `TEAM_GUEST`) voit toutes les applications, hôtes et images. Un `TEAM_GUEST` voit les applications rattachées aux projets qu'il voit, et les hôtes et images qui les portent (faits, paquets OS) ; jamais les applications non rattachées ni celles des autres projets (404), ni Hosts / Agents / Enrollment (403). Une équipe supprimée emporte son inventaire ; un environnement portant des applications ne se supprime pas.
+
 ## 4. Architecture d'ensemble
 
 ```

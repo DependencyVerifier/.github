@@ -27,10 +27,9 @@ Recorded in `cadrage.md` (decisions 21 to 34) and `design.md`:
 - A plain poll writes no audit entry; refusals of agent requests are audited outside any team scope (the claimed `keyid` is untrusted).
 - `GET` on a POST-only `/agent/v1` route answers 400 `invalid_payload` (the router refuses the method before the firewall), still a problem document, never a redirect.
 
-## Next task: browser check, then step 3
+## Next task: none planned in step 2
 
-1. Check the Fleet pages in a real browser (`admin@depverify.localhost`): enrollment dialog (no sideways scroll), token list statuses, agent approval, agent page, Configure dialog. Drive a demo agent with `make fleet-fake-agent a='enroll --token=dvet_…'`, then `a='run --polls=10'`.
-2. Step 3, Inventory: the 3 inventory endpoints of protocol §8 (manifest, snapshot upload, complete), CycloneDX storage, hosts ↔ projects links (a `TEAM_GUEST` then sees the hosts of its projects).
+Step 2 (Fleet core) is complete. Step 3, Inventory: see [its status](console-step-3-status.md).
 
 ## Backlog
 
