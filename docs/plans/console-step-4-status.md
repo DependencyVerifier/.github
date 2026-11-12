@@ -32,10 +32,9 @@ Recorded in `cadrage.md` (decisions 44 to 53):
 
 `make fleet-fake-agent a=inventory` against the dev stack with the real sources: 8 watched packages, 732 advisories, 209 findings on the demo application (curl, glibc, openssl, axios, twig, lodash, and 5 outdated direct dependencies; the fake agent ships old versions on purpose). Functional tests drive the same chain with recorded answers (`tests/Vulnerability/Fixtures/feeds`).
 
-## Next task: browser check, then step 5
+## Next task: see step 5
 
-1. In a real browser: the Findings table of the demo application, a finding page, Accept risk then Revoke.
-2. Step 5: dashboards by team, project, environment and host (findings counts by severity, end of life calendar, top exposed applications).
+Step 5 (dashboards) is delivered: see [its status](console-step-5-status.md).
 
 ## Backlog
 

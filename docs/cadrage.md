@@ -176,6 +176,15 @@ Synchronisation des sources publiques, matching local et Findings, avec l'accept
 52. Accepter un risque exige une justification (2000 caractères au plus) et une date d'expiration après aujourd'hui et dans l'année ; une acceptation en cours est remplacée, révocable, et expire d'elle-même (le Finding redevient ouvert, sans tâche dédiée). Auditée (date d'expiration seulement, la justification est du texte libre). Permissions : `finding.accept_risk` sur le projet de l'application ; pour un hôte ou une application non rattachée, qui relèvent du parc, `host.approve` (une permission de projet n'a pas de sens sans projet).
 53. Visibilité : les Findings d'une application rattachée suivent son projet ; ceux d'un hôte ou d'une application non rattachée ne sont vus que par qui voit tous les projets de l'équipe (pas un `TEAM_GUEST`, 404). Une équipe supprimée emporte ses Findings et leurs acceptations.
 
+### Décisions du step 5 de la console : dashboards (12/11/2026)
+
+Dashboards par équipe, projet, environnement et hôte, et liste filtrée des Findings. La matrice des composants par environnement (§5bis) reste à faire.
+
+54. Un Finding **copie l'emplacement de son sujet** à chaque recalcul : nom de l'application ou de l'hôte, environnement et projet d'une application rattachée. Les dashboards et les listes filtrent en SQL dans Exposure, sans appeler un autre contexte par ligne. Un rattachement ou un détachement manuel publie `ApplicationPlacementChanged`, qui recalcule l'équipe (coalescé comme le reste).
+55. Chiffres d'un périmètre : Findings ouverts **non acceptés** par sévérité (KEV à part), fins de vie par niveau, dépendances en retard, acceptés à part ; ouverts et corrigés par jour sur 30 jours ; les 5 applications les plus exposées (KEV, puis critiques, puis hautes) ; le calendrier des fins de vie avec le **cycle conseillé** (le plus récent encore supporté, « PHP 8.2 → 8.5 »).
+56. Graphiques Chart.js via `symfony/ux-chartjs`, coloriés depuis le thème au moment du rendu (aucun attribut `style`, la CSP reste stricte). Les chiffres sont toujours écrits à côté : le graphique illustre, il ne porte pas l'information seul.
+57. Pages : section **Findings** de l'équipe et du projet (dashboard, puis liste filtrable par type, sévérité, statut, projet ou environnement, filtres dans l'URL) ; **page d'un environnement** (dashboard, applications, Findings) ; frames de synthèse sur les vues d'ensemble de l'équipe et du projet et sur la page hôte. Un `TEAM_GUEST` voit les Findings de ses projets, jamais ceux du parc.
+
 ## 4. Architecture d'ensemble
 
 ```
