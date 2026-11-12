@@ -156,6 +156,26 @@ Réception, stockage et normalisation des inventaires envoyés par l'agent (prot
 **Visibilité**
 43. Un membre de l'équipe (hors `TEAM_GUEST`) voit toutes les applications, hôtes et images. Un `TEAM_GUEST` voit les applications rattachées aux projets qu'il voit, et les hôtes et images qui les portent (faits, paquets OS) ; jamais les applications non rattachées ni celles des autres projets (404), ni Hosts / Agents / Enrollment (403). Une équipe supprimée emporte son inventaire ; un environnement portant des applications ne se supprime pas.
 
+### Décisions du step 4 de la console : Vulnerability et Exposure (12/11/2026)
+
+Synchronisation des sources publiques, matching local et Findings, avec l'acceptation de risque et leur affichage sur les pages application et hôte. Ni dashboards (step 5), ni notifications (step 6). Le détail est dans le plan du step.
+
+**Sources et confidentialité**
+44. OSV par l'**API ciblée** (`/v1/querybatch`, puis `/v1/vulns/{id}` pour les seules advisories nouvelles ou modifiées), pas par les exports complets : seuls les paquets réellement inventoriés sont surveillés. osv.dev ne reçoit **que des couples (écosystème, nom)**, jamais une version, un hôte ni une équipe ; endoflife.date, Packagist et npm que des noms de produits ou de paquets ; FIRST que des CVE. Les versions se comparent localement. Le mode hors ligne (§11) devra ajouter un import.
+45. Protocole v1, ajout additif (§8.5) : un paquet OS porte `distro` (`debian-12`) et, quand il diffère du binaire, `upstream` (paquet source, comme syft) ; les advisories des distributions nomment les paquets sources (`openssl`, pas `libssl3`). Sans `distro`, un paquet OS n'est pas évalué (compté, jamais deviné). Écosystèmes OSV suivis : Packagist, npm, `Debian:N`, `Ubuntu:X.Y[:LTS]`, `Alpine:vX.Y`, `AlmaLinux:N`, `Rocky Linux:N` ; RHEL en attente (son nommage OSV est par produit).
+46. Une comparaison de versions par écosystème, dans le Domain : Composer (`composer/semver`), SemVer 2 (npm), dpkg (Debian, Ubuntu), apk (Alpine), rpmvercmp (RPM). Une version illisible ne produit aucun Finding. Plages OSV évaluées selon le schéma (`introduced`, `fixed`, `last_affected`, `limit`, liste `versions`) ; les plages `GIT` sont ignorées. Score CVSS 3.x calculé depuis le vecteur ; un vecteur CVSS 4 est gardé sans score et la sévérité vient alors de la base (`MODERATE` = medium). KEV (catalogue CISA complet) et EPSS (FIRST) sont stockés par CVE.
+47. Fins de vie (endoflife.date) : runtimes PHP et Node (faits d'hôte, runtime de l'application), OS de l'hôte (faits) ou de l'image (`distro` de ses paquets), Symfony, Laravel et Drupal. Une version appartient au plus long cycle qui la préfixe. Niveaux `upcoming` (J-180), `soon` (J-90), `imminent` (J-30), `expired`, recalculés chaque jour. **Un Finding par cycle** (un hôte peut faire tourner Node 20 et 22).
+48. Obsolescence : dépendances **directes** Composer et npm seulement, contre la dernière version stable (Packagist `p2`, `latest` de npm) ; retard majeur ou mineur, jamais un retard de correctif seul.
+
+**Findings**
+49. Un Finding porte sur une **application** (les paquets de son image comptent pour elle) ou sur un **hôte** (OS, runtimes, paquets OS). Identité : (équipe, sujet, type, clé) avec la clé advisory + paquet, produit + cycle, ou paquet. Il est ouvert tant que le matching le produit, corrigé sinon (jamais supprimé), rouvert s'il revient avec sa date de première détection. Événements d'ouverture et de correction publiés pour les notifications.
+50. Recalcul **par équipe**, idempotent, dans la file `matching` ; les appels externes dans la file `feeds`. Déclencheurs : chaque inventaire traité, chaque advisory modifiée, un recalcul quotidien. Une demande de recalcul déjà en attente pour l'équipe n'en ajoute pas une autre : une synchro de centaines d'advisories ne recalcule chaque équipe qu'une fois.
+51. Planification : des commandes et leurs cibles (`make vuln-sync` toutes les 6 h, `make eol-sync` puis `make findings-refresh` chaque jour), sans bundle cron pour l'instant ; elles ne font que mettre le travail en file.
+
+**Acceptation de risque et visibilité**
+52. Accepter un risque exige une justification (2000 caractères au plus) et une date d'expiration après aujourd'hui et dans l'année ; une acceptation en cours est remplacée, révocable, et expire d'elle-même (le Finding redevient ouvert, sans tâche dédiée). Auditée (date d'expiration seulement, la justification est du texte libre). Permissions : `finding.accept_risk` sur le projet de l'application ; pour un hôte ou une application non rattachée, qui relèvent du parc, `host.approve` (une permission de projet n'a pas de sens sans projet).
+53. Visibilité : les Findings d'une application rattachée suivent son projet ; ceux d'un hôte ou d'une application non rattachée ne sont vus que par qui voit tous les projets de l'équipe (pas un `TEAM_GUEST`, 404). Une équipe supprimée emporte ses Findings et leurs acceptations.
+
 ## 4. Architecture d'ensemble
 
 ```

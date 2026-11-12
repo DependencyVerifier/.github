@@ -32,10 +32,9 @@ Recorded in `cadrage.md` (decisions 35 to 43) and `design.md`:
 
 `make fleet-fake-agent a=inventory name=…` against the dev stack: the inventory goes through the `ingest` queue, the worker marks it `processed`, the Compose service, its image and their packages are stored; a second identical inventory uploads no snapshot.
 
-## Next task: browser check, then step 4
+## Next task: see step 4
 
-1. Check the Inventory pages in a real browser (`admin@depverify.localhost`): inventory figures on the team overview, Applications (team and project), application page with its Attach dialog and history, host page from the Hosts list, image page; then `SCAN_NOW` from the agent page while `make fleet-fake-agent a='run --polls=10'` runs (the inventory follows the poll). A host-mode fake agent (`enroll --mode=host`) sends the OS packages and a path application.
-2. Step 4, Vulnerability and Exposure: OSV / endoflife.date / KEV / EPSS sync and matching over the normalized inventory (`InventoryProcessed` event).
+Step 4 (Vulnerability and Exposure) is delivered: see [its status](console-step-4-status.md).
 
 ## Backlog
 
