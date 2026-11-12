@@ -274,6 +274,8 @@ Response `200 OK`: `inventory_id`, `missing` (digests the console does not have 
 - `bomFormat: "CycloneDX"`, `specVersion: "1.6"`, `version: 1`, **no `serialNumber`**: an identifier that changes with each inventory would change the digest of unchanged content and defeat the deduplication of §8.1.
 - `metadata.component`: the subject (type `application` or `container`, `name`, `bom-ref` = `subject_key`).
 - Every component has a `purl`: `pkg:deb/debian/openssl@3.5.1-1?arch=amd64&distro=debian-13`, `pkg:rpm/…`, `pkg:apk/alpine/…`, `pkg:composer/symfony/http-kernel@6.4.3`, `pkg:npm/%40hotwired/turbo@8.0.23`.
+- OS packages (`deb`, `rpm`, `apk`) carry the `distro` qualifier (`debian-13`, `ubuntu-24.04`, `alpine-3.20`, `rhel-9`, `almalinux-9`, `rocky-9`): the console matches them against the advisories **of that release**, and leaves a package without it unmatched.
+- When its source package differs from the binary one, an OS package also carries the `upstream` qualifier (as syft does): `pkg:deb/debian/libssl3@3.5.1-1?arch=amd64&distro=debian-13&upstream=openssl`, `upstream=name@version` when the source version differs too. Distribution advisories name source packages. Added in v1 without a version change: a console reads the binary name when it is absent.
 - Properties, namespace `depverify:`:
   - `depverify:dependency` = `direct` · `transitive`;
   - `depverify:source` = the file the data came from (`vendor/composer/installed.json`, `composer.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `/var/lib/dpkg/status`, `/lib/apk/db/installed`, `rpmdb`);
