@@ -193,7 +193,9 @@ An order is executed only if **all** hold, else it is rejected with the reason i
 | `SCAN_NOW` | `{}` | Runs a full inventory now (§8). The console rate-limits it to one per agent every 5 minutes. |
 | `SET_CONFIG` | `config_version` (integer, increasing), `scan_interval_minutes` (5–10080), `discovery_roots`, `declared_paths`, `exclusions` (absolute paths; exclusions are glob patterns) | Replaces the collection settings. An order whose `config_version` ≤ the applied one is acknowledged without effect. The console never sends an interval below the team's `minScanIntervalMinutes`. |
 
-Reserved for later versions (an agent of this version rejects them as `unknown_type`): `UPGRADE_AGENT` (binary verified with the **project release key** embedded in the agent, never the console key), `ROTATE_KEY` (new agent key pair), `ROTATE_CONSOLE_KEY` (new console key, signed by the **current** one).
+| `UPGRADE_AGENT` | `version` (`X.Y.Z[-prerelease]`) | **Host mode only** (otherwise `rejected`, reason `unsupported_mode`; `not_newer` when not after the running version). The agent downloads from the console `GET /downloads/agent/{version}/SHA256SUMS`, `…/SHA256SUMS.minisig` and `…/depverify-agent-{arch}-linux` (public, unsigned requests), verifies the minisign signature of the sums with the **project release key embedded in the agent** (never the console key), that its trusted comment is `depverify-agent {version}`, then the SHA-256 of the binary; it keeps them in its state directory (`bin/{version}/`, pointer `bin/current`), acknowledges `executed` and replaces itself by the new binary, which reports the result at its first poll. At each start, a newer installed release is verified again before it runs. Failures: `failed` with `download_failed`, `bad_signature`, `wrong_version`, `unknown_binary`, `bad_checksum` or `install_failed`. |
+
+Reserved for later versions (an agent of this version rejects them as `unknown_type`): `ROTATE_KEY` (new agent key pair), `ROTATE_CONSOLE_KEY` (new console key, signed by the **current** one).
 
 ### 7.4 Execution
 

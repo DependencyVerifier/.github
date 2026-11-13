@@ -162,7 +162,7 @@ Synchronisation des sources publiques, matching local et Findings, avec l'accept
 
 **Sources et confidentialité**
 44. OSV par l'**API ciblée** (`/v1/querybatch`, puis `/v1/vulns/{id}` pour les seules advisories nouvelles ou modifiées), pas par les exports complets : seuls les paquets réellement inventoriés sont surveillés. osv.dev ne reçoit **que des couples (écosystème, nom)**, jamais une version, un hôte ni une équipe ; endoflife.date, Packagist et npm que des noms de produits ou de paquets ; FIRST que des CVE. Les versions se comparent localement. Le mode hors ligne (§11) devra ajouter un import.
-45. Protocole v1, ajout additif (§8.5) : un paquet OS porte `distro` (`debian-12`) et, quand il diffère du binaire, `upstream` (paquet source, comme syft) ; les advisories des distributions nomment les paquets sources (`openssl`, pas `libssl3`). Sans `distro`, un paquet OS n'est pas évalué (compté, jamais deviné). Écosystèmes OSV suivis : Packagist, npm, `Debian:N`, `Ubuntu:X.Y[:LTS]`, `Alpine:vX.Y`, `AlmaLinux:N`, `Rocky Linux:N` ; RHEL en attente (son nommage OSV est par produit).
+45. Protocole v1, ajout additif (§8.5) : un paquet OS porte `distro` (`debian-12`) et, quand il diffère du binaire, `upstream` (paquet source, comme syft) ; les advisories des distributions nomment les paquets sources (`openssl`, pas `libssl3`). Sans `distro`, un paquet OS n'est pas évalué (compté, jamais deviné). Écosystèmes OSV suivis : Packagist, npm, `Debian:N`, `Ubuntu:X.Y[:LTS]`, `Alpine:vX.Y`, `AlmaLinux:N`, `Rocky Linux:N`, et RHEL (voir décision 73).
 46. Une comparaison de versions par écosystème, dans le Domain : Composer (`composer/semver`), SemVer 2 (npm), dpkg (Debian, Ubuntu), apk (Alpine), rpmvercmp (RPM). Une version illisible ne produit aucun Finding. Plages OSV évaluées selon le schéma (`introduced`, `fixed`, `last_affected`, `limit`, liste `versions`) ; les plages `GIT` sont ignorées. Score CVSS 3.x calculé depuis le vecteur ; un vecteur CVSS 4 est gardé sans score et la sévérité vient alors de la base (`MODERATE` = medium). KEV (catalogue CISA complet) et EPSS (FIRST) sont stockés par CVE.
 47. Fins de vie (endoflife.date) : runtimes PHP et Node (faits d'hôte, runtime de l'application), OS de l'hôte (faits) ou de l'image (`distro` de ses paquets), Symfony, Laravel et Drupal. Une version appartient au plus long cycle qui la préfixe. Niveaux `upcoming` (J-180), `soon` (J-90), `imminent` (J-30), `expired`, recalculés chaque jour. **Un Finding par cycle** (un hôte peut faire tourner Node 20 et 22).
 48. Obsolescence : dépendances **directes** Composer et npm seulement, contre la dernière version stable (Packagist `p2`, `latest` de npm) ; retard majeur ou mineur, jamais un retard de correctif seul.
@@ -178,7 +178,7 @@ Synchronisation des sources publiques, matching local et Findings, avec l'accept
 
 ### Décisions du step 5 de la console : dashboards (12/11/2026)
 
-Dashboards par équipe, projet, environnement et hôte, et liste filtrée des Findings. La matrice des composants par environnement (§5bis) reste à faire.
+Dashboards par équipe, projet, environnement et hôte, et liste filtrée des Findings. La matrice des composants par environnement (§5bis) suit au step 7.
 
 54. Un Finding **copie l'emplacement de son sujet** à chaque recalcul : nom de l'application ou de l'hôte, environnement et projet d'une application rattachée. Les dashboards et les listes filtrent en SQL dans Exposure, sans appeler un autre contexte par ligne. Un rattachement ou un détachement manuel publie `ApplicationPlacementChanged`, qui recalcule l'équipe (coalescé comme le reste).
 55. Chiffres d'un périmètre : Findings ouverts **non acceptés** par sévérité (KEV à part), fins de vie par niveau, dépendances en retard, acceptés à part ; ouverts et corrigés par jour sur 30 jours ; les 5 applications les plus exposées (KEV, puis critiques, puis hautes) ; le calendrier des fins de vie avec le **cycle conseillé** (le plus récent encore supporté, « PHP 8.2 → 8.5 »).
@@ -208,10 +208,19 @@ Protocole v1 complet (enrôlement, polling signé, ordres `SCAN_NOW` et `SET_CON
 
 67. **Agent synchrone**, sans runtime async : une boucle (poll, ordres, inventaire). HTTP vers la console avec `ureq` (rustls) ; l'API Docker par un mini-client HTTP en lecture seule (TCP vers le proxy, ou socket Unix), réponses lues en flux. Pas de `bollard` ni de `tokio` : un binaire statique de 4 Mo.
 68. Racines TLS : celles de Mozilla embarquées dans le binaire (l'image `scratch` n'a pas de magasin système), ou une CA privée par `AGENT_CA_FILE` ; `HTTPS_PROXY` respecté.
-69. Inventaire d'une image : export `GET /images/{id}/get` lu couche par couche (formats Docker et OCI, compressé ou non), seules les bases de paquets gardées, whiteouts appliqués ; cache par Image ID et version de l'agent. Les dépendances d'une application conteneurisée viennent du conteneur en cours (`GET /containers/{id}/archive`), aux chemins des labels ou aux emplacements usuels. Les bases RPM **dans les images** (`rpmdb.sqlite`) ne sont pas encore lues.
+69. Inventaire d'une image : export `GET /images/{id}/get` lu couche par couche (formats Docker et OCI, compressé ou non), seules les bases de paquets gardées, whiteouts appliqués ; cache par Image ID et version de l'agent. Les dépendances d'une application conteneurisée viennent du conteneur en cours (`GET /containers/{id}/archive`), aux chemins des labels ou aux emplacements usuels. Les bases RPM des images sont lues sans `rpm`, en Rust pur : SQLite (`rpmdb.sqlite`, RHEL 9, Fedora, Amazon Linux 2023) et Berkeley DB (`Packages`, RHEL 7 et 8) ; ndb (SUSE) non.
 70. Code de sortie 3 = arrêt définitif (agent révoqué ou inconnu, jeton refusé, clé de console différente) : l'unité systemd ne le relance pas en boucle (`RestartPreventExitStatus=3`).
 71. **Releases et `install.sh`** : un tag `vX.Y.Z` de l'agent publie une GitHub Release (binaires statiques x86_64 et aarch64, `SHA256SUMS` signé minisign par la clé de release du projet, secret de CI). La console télécharge la dernière release chaque jour (`make agent-release-sync`, ou import manuel d'un dossier pour une instance sans Internet), vérifie la signature avec `AGENT_RELEASE_PUBKEY` (clé de release du projet, minisign, id `EBDDB456A4BF3356` : `RWRWM7+kVrTd63TMnDIUOLjb78MC3QJTImbW3Gi/8ooaxK7iF2tC/ZSz`, valeur par défaut commitée de la console) et chaque binaire contre ses sommes, puis seulement les sert (`/downloads/agent/…`). `/install.sh` est généré à la demande : URL et clé de la console, version et SHA-256 de chaque architecture ; sans release vérifiée, il refuse (503). Le dialogue du jeton donne la commande `curl --proto '=https' --tlsv1.2 -fsSL …/install.sh | sudo AGENT_TOKEN=… sh`.
 72. **Image officielle** : un tag `vX.Y.Z` du dépôt `agent-image` construit `ghcr.io/dependencyverifier/agent:X.Y.Z` (amd64, arm64) **à partir des binaires de la release signée**, vérifiés pendant le build comme la console les vérifie (signature minisign, version du commentaire signé, SHA-256), sans recompiler ; l'image est poussée avec ses attestations de provenance et de SBOM, puis signée cosign sans clé (OIDC GitHub).
+
+### Décisions du step 7, findings en contexte et production d'abord (13/11/2026)
+
+73. **Avis RHEL** : OSV publie les RHSA de Red Hat par flux (`Red Hat:enterprise_linux:9::appstream`, `…::baseos`, `…::crb`), en nommant les **paquets binaires** (pas les sources) avec des versions `epoch:version-release` (époque 0 écrite). La console ramène les flux d'une version majeure à une clé (`Red Hat:enterprise_linux:9`), interroge OSV sur la famille `Red Hat` (seule réponse de l'API) et garde le nom binaire d'un paquet `distro=rhel-N` (pas `upstream`). Les autres produits Red Hat (EUS, SAP, NVIDIA…) ne sont pas suivis.
+74. **Production d'abord** : un Finding copie aussi l'hôte de son sujet et s'il est en production — une application dans un environnement marqué production, un hôte qui en porte une. Changer le drapeau d'un environnement relance le calcul. La liste des Findings se filtre par hôte (l'hôte et ses applications) et par production ; le tableau de bord d'équipe ouvre sur la production (exploitées, critiques, élevées, fins de vie, les 5 plus urgentes) ; l'accueil rassemble la production de toutes les équipes de l'acteur (un super admin : les siennes).
+75. **Matrice d'un environnement** (§5bis) : par composant (runtime, OS de l'image ou de l'hôte, dépendances directes), chaque version et les applications et hôtes qui la portent ; plusieurs versions d'un même composant = dérive, filtrable.
+76. **Page d'un avis** (`/teams/{id}/advisories/{id OSV ou alias}`) : l'avis tel que synchronisé (textes toujours échappés, références en liens sortants jamais suivis) et les Findings de l'équipe qu'il cause ; les identifiants d'un Finding y mènent, osv.dev en lien secondaire.
+77. **Runtime d'une application (mode host)** : le pool PHP-FPM auquel son serveur web la confie (pools Debian, RHEL et Remi ; sites nginx et Apache, lus dans leurs fichiers, jamais par une commande), avec sa version et son service (`php8.2-fpm`) ; à défaut, le `php` par défaut de l'hôte.
+78. **`UPGRADE_AGENT`** (mode `host`) : la console met en file la dernière release vérifiée pour un agent hôte en retard (bouton sur la page de l'agent, ou pour tous ceux de l'équipe), un ordre en attente à la fois ; elle sert aussi `SHA256SUMS` et sa signature. L'agent télécharge la release, vérifie la signature avec la **clé de release embarquée**, la version signée et le SHA-256, la garde dans son dossier d'état (`bin/X.Y.Z/`) puis s'exécute dessus ; à chaque démarrage, le binaire installé revérifie la release avant de lui céder la place. Aucun privilège en plus (l'unité systemd est inchangée) ; un agent conteneur se met à jour par son image.
 
 ## 4. Architecture d'ensemble
 
@@ -442,7 +451,7 @@ Tous les ordres sont signés Ed25519 par la console et portent un id unique et u
 |---|---|
 | `SCAN_NOW` | Relance un inventaire complet |
 | `SET_CONFIG` | Racines de découverte, chemins déclarés, exclusions, intervalle |
-| `UPGRADE_AGENT` *(post-MVP)* | Mise à jour vers une version donnée. Le binaire est vérifié avec la **clé de release du projet**, pas celle de la console. |
+| `UPGRADE_AGENT` | Mise à jour vers une version donnée (mode `host`). Le binaire est vérifié avec la **clé de release du projet** embarquée dans l'agent, pas celle de la console (décision 78). |
 | `ROTATE_KEY` *(post-MVP)* | Régénère la paire de clés de l'agent |
 
 **Aucune commande shell arbitraire, jamais.**
@@ -853,7 +862,7 @@ Il ne voit **jamais** les projets 1, 3 et 5 de l'équipe 1, ni les projets 2, 3 
 
 | Source | Usage |
 |---|---|
-| **OSV.dev** (exports zip par écosystème) | Vulnérabilités Packagist, npm, Debian, Ubuntu, Alpine, AlmaLinux/Rocky… La couverture RHEL est à vérifier. |
+| **OSV.dev** (exports zip par écosystème) | Vulnérabilités Packagist, npm, Debian, Ubuntu, Alpine, AlmaLinux/Rocky, RHEL (décision 73). |
 | GitHub Advisory DB / FriendsOfPHP security-advisories | Complément PHP. La plupart des entrées sont déjà dans OSV. |
 | **endoflife.date** (API) | Fins de vie des runtimes, frameworks et distributions (PHP, Node, Symfony, Laravel, Drupal, Debian, MySQL…). |
 | **CISA KEV** | CVE activement exploitées, pour prioriser. |
@@ -980,7 +989,7 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 
 ## 11. Roadmap après le MVP
 
-- `UPGRADE_AGENT` (mise à jour automatique signée), `ROTATE_KEY`.
+- `ROTATE_KEY`, `ROTATE_CONSOLE_KEY`.
 - **API publique complète** (lecture + écriture) avec jetons d'API, en même temps que les sources CI et Git. Les permissions `apitoken.manage` et les règles des jetons (§7bis) sont déjà prévues dans le modèle.
 - **Collecteur ECS Fargate** (mode `ecs`, §6bis), avec accès aux registres privés (ECR, puis GHCR, GitLab…), puis autres plateformes managées.
 - Mode `embedded` (agent dans l'image de l'application).
