@@ -18,7 +18,6 @@ Work set aside, to pick up later. Each item points to its decisions in `cadrage.
 
 ## Agent
 
-- CI of `agent-image`: multi-arch build, cosign signature, publication on `ghcr.io`.
 - The release key embedded in the agent, for `UPGRADE_AGENT`.
 - RPM databases inside container images (`rpmdb.sqlite`).
 - `UPGRADE_AGENT`, `ROTATE_KEY`, `ROTATE_CONSOLE_KEY` (post-MVP).
