@@ -7,7 +7,6 @@ Work set aside, to pick up later. Each item points to its decisions in `cadrage.
 - **Step 1b: passkeys** (WebAuthn, optional, MVP §10.1). Library to choose (cadrage §12: Symfony support if any,
   else `web-auth/webauthn-framework`); a passkey as a sign-in method and as a second factor, enrolled from Account
   security, revocable; audited like the other factors.
-- Cron bundle (`lexik/cron-file-generator-bundle` once it supports Symfony 8), wired to the existing `make` targets.
 - Offline mode (§11).
 - Other Red Hat products (EUS, SAP, …) and SUSE (ndb RPM databases in images).
 - Charts redrawn on a theme switch without reload.
