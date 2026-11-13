@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:depverify:protocol:v1:key-rotation-request",
+  "title": "POST /agent/v1/key-rotations — request (protocol.md §5.3)",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "order_id",
+    "new_public_key",
+    "proof"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": {
+      "$ref": "urn:depverify:protocol:v1:common#/$defs/protocolVersion"
+    },
+    "order_id": {
+      "$ref": "urn:depverify:protocol:v1:common#/$defs/uuid7"
+    },
+    "new_public_key": {
+      "type": "string",
+      "pattern": "^ed25519:[A-Za-z0-9+/]{43}=$"
+    },
+    "proof": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$",
+      "description": "base64url, no padding, of the Ed25519 signature by the NEW key of `depverify-key-rotation-v1\\n{agent_id}\\n{order_id}\\n{new_public_key}`."
+    }
+  }
+}

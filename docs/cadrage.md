@@ -221,6 +221,7 @@ Protocole v1 complet (enrôlement, polling signé, ordres `SCAN_NOW` et `SET_CON
 76. **Page d'un avis** (`/teams/{id}/advisories/{id OSV ou alias}`) : l'avis tel que synchronisé (textes toujours échappés, références en liens sortants jamais suivis) et les Findings de l'équipe qu'il cause ; les identifiants d'un Finding y mènent, osv.dev en lien secondaire.
 77. **Runtime d'une application (mode host)** : le pool PHP-FPM auquel son serveur web la confie (pools Debian, RHEL et Remi ; sites nginx et Apache, lus dans leurs fichiers, jamais par une commande), avec sa version et son service (`php8.2-fpm`) ; à défaut, le `php` par défaut de l'hôte.
 78. **`UPGRADE_AGENT`** (mode `host`) : la console met en file la dernière release vérifiée pour un agent hôte en retard (bouton sur la page de l'agent, ou pour tous ceux de l'équipe), un ordre en attente à la fois ; elle sert aussi `SHA256SUMS` et sa signature. L'agent télécharge la release, vérifie la signature avec la **clé de release embarquée**, la version signée et le SHA-256, la garde dans son dossier d'état (`bin/X.Y.Z/`) puis s'exécute dessus ; à chaque démarrage, le binaire installé revérifie la release avant de lui céder la place. Aucun privilège en plus (l'unité systemd est inchangée) ; un agent conteneur se met à jour par son image.
+79. **Rotations de clés.** `ROTATE_KEY` : l'agent génère une nouvelle paire, l'annonce par `POST /agent/v1/key-rotations` signé par l'ancienne clé avec une preuve signée par la nouvelle (protocole §5.3) ; la console vérifie l'ordre, la preuve et l'unicité, puis remplace la clé (audité). L'ancienne clé reste chez l'agent jusqu'à la première requête acceptée avec la nouvelle (reprise après coupure). `ROTATE_CONSOLE_KEY` : chaque agent épingle une clé de console (`console_key_id`, renseignée au premier poll) et chaque ordre est signé avec la clé épinglée par son agent. **Procédure** : (1) générer une graine (`openssl rand -base64 32`) dans `APP_AGENT_SIGNING_KEY_NEXT` ; (2) `make console-key-rotate` envoie la nouvelle clé, signée par l'ancienne, à chaque agent approuvé ; (3) le relancer jusqu'à 100 % (les agents enrôlés entre-temps épinglent encore l'ancienne) ; (4) mettre la nouvelle graine dans `APP_AGENT_SIGNING_KEY` et vider `APP_AGENT_SIGNING_KEY_NEXT` (`install.sh` et l'enrôlement donnent alors la nouvelle clé). Un agent resté sur une clé que la console n'a plus ne reçoit plus d'ordre : il faut le réinstaller.
 
 ## 4. Architecture d'ensemble
 
@@ -452,7 +453,8 @@ Tous les ordres sont signés Ed25519 par la console et portent un id unique et u
 | `SCAN_NOW` | Relance un inventaire complet |
 | `SET_CONFIG` | Racines de découverte, chemins déclarés, exclusions, intervalle |
 | `UPGRADE_AGENT` | Mise à jour vers une version donnée (mode `host`). Le binaire est vérifié avec la **clé de release du projet** embarquée dans l'agent, pas celle de la console (décision 78). |
-| `ROTATE_KEY` *(post-MVP)* | Régénère la paire de clés de l'agent |
+| `ROTATE_KEY` | Régénère la paire de clés de l'agent, qui prouve la nouvelle à la console (décision 79). |
+| `ROTATE_CONSOLE_KEY` | Fait épingler à l'agent la nouvelle clé de la console, dans un ordre signé par l'ancienne (décision 79). |
 
 **Aucune commande shell arbitraire, jamais.**
 
@@ -704,7 +706,7 @@ Le même principe « liste de ce qui tourne + analyse de l'image par digest » s
 
 - **Secrets jamais relisibles** : jetons d'enrôlement et jetons d'API stockés hachés, affichés une seule fois.
 - **Secrets au repos** (secrets HMAC des webhooks, identifiants SMTP, secrets TOTP…) chiffrés en AES-256-GCM, clé maîtresse hors base (variable d'environnement ou fichier).
-- La **clé privée de signature** de la console ne quitte jamais le serveur. Une procédure de rotation doit être documentée.
+- La **clé privée de signature** de la console ne quitte jamais le serveur. Sa rotation suit la procédure de la décision 79.
 - **Cloisonnement** : chaque requête, chaque vue et chaque ordre vérifie que la ressource appartient au périmètre de l'utilisateur. Le contrôle est **centralisé** (voters Symfony) et pas ajouté action par action.
 - **Journal d'audit** :
   - posé globalement, sur toutes les routes, UI comme API agents ;
@@ -989,7 +991,6 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 
 ## 11. Roadmap après le MVP
 
-- `ROTATE_KEY`, `ROTATE_CONSOLE_KEY`.
 - **API publique complète** (lecture + écriture) avec jetons d'API, en même temps que les sources CI et Git. Les permissions `apitoken.manage` et les règles des jetons (§7bis) sont déjà prévues dans le modèle.
 - **Collecteur ECS Fargate** (mode `ecs`, §6bis), avec accès aux registres privés (ECR, puis GHCR, GitLab…), puis autres plateformes managées.
 - Mode `embedded` (agent dans l'image de l'application).

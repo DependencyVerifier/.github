@@ -16,5 +16,4 @@ Work set aside, to pick up later. Each item points to its decisions in `cadrage.
 
 ## Agent
 
-- `ROTATE_KEY`, `ROTATE_CONSOLE_KEY`.
 - Modes `embedded` and `ecs`.

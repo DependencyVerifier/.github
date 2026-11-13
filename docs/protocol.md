@@ -119,6 +119,10 @@ Example: [`protocol/examples/enrollment-request.json`](protocol/examples/enrollm
 
 Errors: `token_invalid` (unknown, used or revoked token), `token_expired`, `quota_exceeded` (team `maxAgents`), `invalid_payload`. A single-use token is consumed by the first successful enrollment.
 
+### 5.3 Key rotation
+
+An agent executing `ROTATE_KEY` (§7.3) generates a new key pair, keeps it (`agent.key.next`) and announces it: `POST /agent/v1/key-rotations` ([schema](protocol/schemas/key-rotation-request.schema.json)), **signed with its current key** (§4), with `order_id` (the `ROTATE_KEY` order, delivered and not answered yet), `new_public_key` and `proof`: the base64url signature, **by the new key**, of `depverify-key-rotation-v1\n{agent_id}\n{order_id}\n{new_public_key}`. The console checks the order, the proof and that no live agent holds that key, then replaces the agent's key and fingerprint (audited) and answers `200 OK`. From then on the agent signs with the new key (the old one kept as `agent.key.previous` until a request with the new one succeeds: if the console answers `invalid_signature`, the rotation never reached it and the agent goes back to the old key). Errors: `invalid_payload` (no such order, not a key, key already used), `invalid_signature` (proof).
+
 ## 6. Polling
 
 ### 6.1 Request
@@ -195,7 +199,8 @@ An order is executed only if **all** hold, else it is rejected with the reason i
 
 | `UPGRADE_AGENT` | `version` (`X.Y.Z[-prerelease]`) | **Host mode only** (otherwise `rejected`, reason `unsupported_mode`; `not_newer` when not after the running version). The agent downloads from the console `GET /downloads/agent/{version}/SHA256SUMS`, `…/SHA256SUMS.minisig` and `…/depverify-agent-{arch}-linux` (public, unsigned requests), verifies the minisign signature of the sums with the **project release key embedded in the agent** (never the console key), that its trusted comment is `depverify-agent {version}`, then the SHA-256 of the binary; it keeps them in its state directory (`bin/{version}/`, pointer `bin/current`), acknowledges `executed` and replaces itself by the new binary, which reports the result at its first poll. At each start, a newer installed release is verified again before it runs. Failures: `failed` with `download_failed`, `bad_signature`, `wrong_version`, `unknown_binary`, `bad_checksum` or `install_failed`. |
 
-Reserved for later versions (an agent of this version rejects them as `unknown_type`): `ROTATE_KEY` (new agent key pair), `ROTATE_CONSOLE_KEY` (new console key, signed by the **current** one).
+| `ROTATE_KEY` | `{}` | A new key pair for the agent, announced by §5.3. `executed` once the console accepted it, else `failed` (`rotation_refused`, `key_not_written`). The fingerprint shown in the console changes. |
+| `ROTATE_CONSOLE_KEY` | `new_key` (`ed25519:…`) | The console key the agent pins from now on, in an order signed by the key it pins today; the agent keeps it in its state (it prevails over `AGENT_CONSOLE_PUBKEY`). The console signs each order with the key its agent pins (`signature.key_id`), and moves an agent to the new key once it reports `executed`. Procedure: set `APP_AGENT_SIGNING_KEY_NEXT`, run `make console-key-rotate` until every approved agent pins it, then make it `APP_AGENT_SIGNING_KEY` and empty the next one. |
 
 ### 7.4 Execution
 

@@ -29,7 +29,9 @@
           "enum": [
             "SCAN_NOW",
             "SET_CONFIG",
-            "UPGRADE_AGENT"
+            "UPGRADE_AGENT",
+            "ROTATE_KEY",
+            "ROTATE_CONSOLE_KEY"
           ]
         },
         "agent_id": {
@@ -93,6 +95,38 @@
             "properties": {
               "payload": {
                 "$ref": "#/$defs/upgradeAgentPayload"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ROTATE_KEY"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/scanNowPayload"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ROTATE_CONSOLE_KEY"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/rotateConsoleKeyPayload"
               }
             }
           }
@@ -185,6 +219,20 @@
           "type": "string",
           "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$",
           "maxLength": 64
+        }
+      }
+    },
+    "rotateConsoleKeyPayload": {
+      "type": "object",
+      "required": [
+        "new_key"
+      ],
+      "additionalProperties": false,
+      "description": "The console key the agent pins from now on, in an order signed by the key it pins today.",
+      "properties": {
+        "new_key": {
+          "type": "string",
+          "pattern": "^ed25519:[A-Za-z0-9+/]{43}=$"
         }
       }
     }
