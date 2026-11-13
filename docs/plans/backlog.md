@@ -15,3 +15,12 @@ Work set aside, to pick up later. Each item points to its decisions in `cadrage.
 - Charts redrawn on a theme switch without reload.
 - Notifications: Slack, Teams and Discord channels; role raised when a promoted recipient accepts a team invitation;
   recipients out of `maxMembers`; a stored notification-only flag.
+
+## Agent
+
+- Releases signed with minisign (CI), the console mirroring them and serving `install.sh` (cadrage §6, install trust
+  chain); until then, build from source or use the image.
+- RPM databases inside container images (`rpmdb.sqlite`).
+- `UPGRADE_AGENT`, `ROTATE_KEY`, `ROTATE_CONSOLE_KEY` (post-MVP).
+- Modes `embedded` and `ecs`.
+- PHP-FPM pools as the runtime of a path application (today: the default `php` of the host).

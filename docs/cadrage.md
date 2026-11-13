@@ -202,6 +202,15 @@ Email et webhook signé, règles par projet et par parc, digests, agents muets, 
 65. Un gestionnaire (`project.notifications.manage`) ajoute une **adresse** : il ne crée qu'une invitation dans Notification (lien haché de 7 jours), **sans compte ni membership**, avec la même réponse quelle que soit l'adresse (ni accaparement d'adresse, ni énumération des comptes). À la confirmation (un `POST` sur le lien, preuve de possession de la boîte) : Identity crée ou réutilise le compte « notification seule » ; Organization l'admet `PROJECT_VIEWER` (et `TEAM_GUEST`) au nom du gestionnaire, s'il a toujours la permission. Une adresse d'un compte qui se connecte n'est jamais rattachée ainsi : abonnée si elle voit déjà le projet, sinon l'invitation est déclinée (à inviter au projet). Quota `maxNotificationOnlyAccounts` : adresses invitées et comptes rattachés, chacun une fois.
 66. Un compte « notification seule » est **promu** en compte complet en acceptant une invitation (il choisit son mot de passe) ou en devenant premier `TEAM_ADMIN` (lien de création), sans perdre ses memberships.
 
+### Décisions de l'agent v0.1 (13/11/2026)
+
+Protocole v1 complet (enrôlement, polling signé, ordres `SCAN_NOW` et `SET_CONFIG`, inventaires), modes `host` et `container`, vérifiés de bout en bout contre la console. Le détail est dans le `CLAUDE.md` du dépôt de l'agent.
+
+67. **Agent synchrone**, sans runtime async : une boucle (poll, ordres, inventaire). HTTP vers la console avec `ureq` (rustls) ; l'API Docker par un mini-client HTTP en lecture seule (TCP vers le proxy, ou socket Unix), réponses lues en flux. Pas de `bollard` ni de `tokio` : un binaire statique de 4 Mo.
+68. Racines TLS : celles de Mozilla embarquées dans le binaire (l'image `scratch` n'a pas de magasin système), ou une CA privée par `AGENT_CA_FILE` ; `HTTPS_PROXY` respecté.
+69. Inventaire d'une image : export `GET /images/{id}/get` lu couche par couche (formats Docker et OCI, compressé ou non), seules les bases de paquets gardées, whiteouts appliqués ; cache par Image ID et version de l'agent. Les dépendances d'une application conteneurisée viennent du conteneur en cours (`GET /containers/{id}/archive`), aux chemins des labels ou aux emplacements usuels. Les bases RPM **dans les images** (`rpmdb.sqlite`) ne sont pas encore lues.
+70. Code de sortie 3 = arrêt définitif (agent révoqué ou inconnu, jeton refusé, clé de console différente) : l'unité systemd ne le relance pas en boucle (`RestartPreventExitStatus=3`).
+
 ## 4. Architecture d'ensemble
 
 ```
