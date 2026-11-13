@@ -241,11 +241,13 @@ Subjects:
 
 | `kind` | `subject_key` | Fields |
 |---|---|---|
-| `path` | `path:<absolute path>` | `path`, `origin` (`discovered` · `declared`), optional `runtime` (`name`, `version`, `service`, e.g. `php8.2-fpm`) |
-| `compose_service` | `compose:<project>/<service>` | `compose_project`, `service`, `container_ids`, `image_id`, optional `labels` (the `dev.depverify.*` labels found: `name`, `environment`, `paths`) |
-| `container` | `container:<name>` | standalone container: `container_name`, `container_id`, `image_id` |
+| `path` | `path:<absolute path>` | `path`, `origin` (`discovered` · `declared`), optional `runtime` (`name`, `version`, `service`, e.g. `php8.2-fpm`) and `requires` |
+| `compose_service` | `compose:<project>/<service>` | `compose_project`, `service`, `container_ids`, `image_id`, optional `runtime` (`name`, `version`), `requires` and `labels` (the `dev.depverify.*` labels found: `name`, `environment`, `paths`) |
+| `container` | `container:<name>` | standalone container: `container_name`, `container_id`, `image_id`, optional `runtime` (`name`, `version`) and `requires` |
 | `container_image` | `image:<image id>` | `image_id` (`sha256:…`, also for local builds), `repo_digests`, `tags`, `provenance` (`registry` · `local-build`), optional `base_image` |
 | `host` | `host` | none: the SBOM lists the OS packages of the host itself (dpkg, rpm, apk). At most one, sent only by an agent that sees the host (mode `host`, or `container` with scope `host`). |
+
+`runtime` is the runtime serving the application (`php` when it has a Composer manifest, else `node`): on a host the version given by `php -v` / `node -v`, in a container the `PHP_VERSION` / `NODE_VERSION` variable the official images set (the agent reads **these two variables only**, never the rest of the environment, which may hold secrets; a value that is not a version is dropped). `requires` is what the project declares, each optional, at most 100 characters: `php` from `require.php` of `composer.json`, `node` from `engines.node` of `package.json` (a Node application only).
 
 An application subject running in a container references its image by `image_id`; the image's own packages are in the `container_image` subject's SBOM, analysed once per image id (§6bis of the cadrage).
 

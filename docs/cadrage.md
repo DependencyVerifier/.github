@@ -783,6 +783,7 @@ Légende :
 | `host.revoke` | équipe | ✓ | ✓ | ○ | | | | | |
 | `host.delete` | équipe | ✓ | ✓ | ○ | | | | | |
 | `host.order` (`SCAN_NOW`, `SET_CONFIG`) | équipe | ✓ | ✓ | ○ | | | | | |
+| `host.edit` (nom d'affichage et adresses IP d'un hôte, liens de documentation d'une application non rattachée) | équipe | ✓ | ✓ | ○ | | | | | |
 | `host.view` (hôtes portant un projet accessible) | projet | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ |
 | `project.create` | équipe | ✓ | ✓ | ○ | | ○ | | | |
 | `project.edit` | projet | ✓ | ✓ | ○ | | – | ✓ | ○ | |

@@ -45,6 +45,27 @@
   },
   "$defs": {
     "imageId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "runtime": {
+      "type": "object",
+      "description": "The runtime of the application: `php -v` / `node -v` on a host, PHP_VERSION / NODE_VERSION of the container environment.",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "enum": ["php", "node"] },
+        "version": { "type": "string" },
+        "service": { "type": "string", "description": "Serving process, e.g. php8.2-fpm (hosts only)." }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "description": "The runtime versions the project declares: require.php of composer.json, engines.node of package.json.",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "php": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "node": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
     "pathSubject": {
       "type": "object",
       "required": ["kind", "path", "origin"],
@@ -55,16 +76,8 @@
         "sbom": true,
         "path": { "$ref": "urn:depverify:protocol:v1:common#/$defs/absolutePath" },
         "origin": { "enum": ["discovered", "declared"] },
-        "runtime": {
-          "type": "object",
-          "required": ["name", "version"],
-          "additionalProperties": false,
-          "properties": {
-            "name": { "enum": ["php", "node"] },
-            "version": { "type": "string" },
-            "service": { "type": "string", "description": "Serving process, e.g. php8.2-fpm." }
-          }
-        }
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "requires": { "$ref": "#/$defs/requires" }
       }
     },
     "composeServiceSubject": {
@@ -79,6 +92,8 @@
         "service": { "type": "string", "minLength": 1 },
         "container_ids": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" } },
         "image_id": { "$ref": "#/$defs/imageId" },
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "requires": { "$ref": "#/$defs/requires" },
         "labels": {
           "type": "object",
           "additionalProperties": false,
@@ -100,7 +115,9 @@
         "sbom": true,
         "container_name": { "type": "string", "minLength": 1 },
         "container_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "image_id": { "$ref": "#/$defs/imageId" }
+        "image_id": { "$ref": "#/$defs/imageId" },
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "requires": { "$ref": "#/$defs/requires" }
       }
     },
     "containerImageSubject": {
