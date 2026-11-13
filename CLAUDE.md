@@ -63,4 +63,4 @@ Each repository has its own `CLAUDE.md` with stack details and commands. Locally
 
 Accounts + 2FA + optional passkeys, notification-only accounts, invitations, teams with quotas, team/project roles; full agent enrollment (single + reusable tokens); inventory every 6 h + on demand + on image change, 90-day history; Linux/systemd agent (OS packages, PHP/Composer, Node, runtimes); `container` mode with read-only socket proxy; OSV + endoflife.date + KEV + EPSS sync and matching; dashboards; email + webhook notifications; append-only audit; signed orders `SCAN_NOW`, `SET_CONFIG`.
 
-**Out of MVP**: public API / API tokens, SSO, Fargate (`ecs`) collector, `embedded` mode, registry access, Kubernetes, Windows, ticket/PR creation, `UPGRADE_AGENT` / `ROTATE_KEY`, air-gap mode.
+**Out of MVP**: public API / API tokens, SSO, Fargate (`ecs`) collector, registry access, Kubernetes, Windows, ticket/PR creation, air-gap mode.

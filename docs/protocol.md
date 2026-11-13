@@ -97,8 +97,8 @@ The agent SHOULD keep an offset to the console clock, learnt from `server_time` 
 | `enrollment_token` | The token given at install (`AGENT_TOKEN` / `AGENT_TOKEN_FILE`). Sent only here, never logged by either side. |
 | `public_key` | `ed25519:…` |
 | `agent_version` | Semver of the binary. |
-| `mode` | `host` · `container` (MVP), `embedded` · `ecs` (later). |
-| `scope` | `container` mode only: `compose` · `labeled` · `host`. |
+| `mode` | `host` · `container` · `embedded` (the agent inside the application's image), `ecs` (later: answered `invalid_payload`). |
+| `scope` | `container` mode only: `compose` · `labeled` · `host`. Never sent in `embedded` mode. |
 | `compose_project` | `compose` / `labeled` scopes: the `com.docker.compose.project` label of the agent's own container. The console later rejects inventories outside it (§8.4). |
 | `host` | Short host facts: `hostname`, `os` (`id`, `version_id`, `pretty_name`), `kernel`, `arch`, `docker_engine_id` (when Docker is readable), `machine_id_hash` (SHA-256 of `/etc/machine-id`, hex, when readable). Used to group agents of one host. |
 
@@ -275,7 +275,7 @@ Response `200 OK`: `inventory_id`, `missing` (digests the console does not have 
 
 - `409 missing_snapshots` (with the list) if a digest from `missing` was not uploaded.
 - `202 Accepted` otherwise: the console stores the inventory and processes it asynchronously (diff, matching, notifications). The API itself does no matching.
-- Scope guard: for `compose` / `labeled` scopes, a subject whose `compose_project` differs from the enrolled one, or a `host` subject, makes the whole inventory rejected (`403 scope_violation`, audited). The console checks it on the manifest already, before anything is stored.
+- Scope guard: for `compose` / `labeled` scopes, a subject whose `compose_project` differs from the enrolled one, or a `host` subject, makes the whole inventory rejected (`403 scope_violation`, audited). An `embedded` agent sees its own container only: its `host` subject (the container's OS packages) and its `path` applications; any `compose_service`, `container` or `container_image` subject is rejected the same way. The console checks it on the manifest already, before anything is stored.
 - A manifest not completed within 1 hour is discarded.
 
 ### 8.5 CycloneDX profile

@@ -67,7 +67,7 @@ Les outils existants (Dependabot, Renovate, Snyk, Trivy, OWASP Dependency-Track)
 | Domaine | **Aucun domaine imposé.** Chaque instance est auto-hébergée et configure son URL publique (`SERVER_NAME`, `DEFAULT_URI` ; le `rpId` des passkeys en découle). Instance de référence : `console.depverify.romainmillan.fr`. Les identifiants techniques sont des constantes du produit, indépendantes du domaine : binaire `depverify-agent`, labels `dev.depverify.*`, image `ghcr.io/dependencyverifier/agent`, organisation GitHub `DependencyVerifier`. En local : `https://console.depverify.localhost`. |
 | Design de la console | Interface **sobre et dense, inspirée de shadcn/ui** : sidebar à gauche, en-têtes d'objet, cartes de métadonnées, onglets, thème clair / sombre / système. **Symfony UX Toolkit (kit `shadcn`) + Tailwind CSS v4**, compilé par Vite via Symfony Reprise. Polices auto-hébergées (voir §9 et `docs/design.md`). |
 | Autoscaling | **Jeton d'enrôlement réutilisable**, validé une fois par un humain, limité en nombre d'agents et dans le temps. Les agents enrôlés avec ce jeton sont validés automatiquement (voir §6). |
-| Mode `embedded` | **Hors MVP**, ajouté quand un besoin réel apparaît. |
+| Mode `embedded` | Agent dans l'image de l'application, en secours (décision 25, §6bis.3). |
 | Registres d'images applicatives | **Aucun accès registre au MVP, quelle que soit l'origine de l'image** : GitHub Container Registry, registre privé ou **image construite sur le serveur** avec un Dockerfile. Dès qu'un conteneur tourne, son image est présente dans le moteur Docker local, et l'agent la lit via l'API Docker. Il n'a besoin d'aucun identifiant de registre. L'accès aux registres n'arrivera qu'avec le collecteur Fargate (voir §6bis, « Identité d'une image »). |
 | Distribution de l'agent | **GitHub public** : binaires (GitHub Releases, signés minisign) et image Docker (`ghcr.io`, signée cosign), utilisables par tous. La console vérifie les signatures avant de servir une version. **Import manuel** d'un binaire signé possible pour les instances sans accès Internet. |
 | Dimensionnement | **Cible MVP ≤ 200 agents** par instance. Le design doit permettre de monter à **≤ 2 000 agents** sans refonte (voir §9bis). |
@@ -122,7 +122,7 @@ Cœur de Fleet, sans installeur (`install.sh` et miroir des binaires attendent u
 22. Jeton **à usage unique** : valable **1 heure**, 1 agent, consommé au premier enrôlement réussi ; rien à régler. Jeton **réutilisable** : environnement par défaut, expiration (90 jours au plus) et nombre maximal d'agents (1 à 10 000) obligatoires ; `pending → approved → revoked`. Seuls les enrôlements faits **après** sa validation donnent des agents `approved`.
 23. Quota `maxAgents` : compte les agents `pending` et `approved` (un jeton inutilisé ne réserve pas de place) ; il bloque la création de jeton et l'enrôlement (`quota_exceeded`, 409), et la validation d'un agent si l'équipe est au-dessus de sa limite. `maxReusableEnrollmentTokens` compte les jetons réutilisables actifs (ni révoqués, ni expirés, ni épuisés). Tout comptage se fait sous un verrou de flotte par équipe (`fleet.team:<id>`), y compris l'effacement d'une équipe supprimée.
 24. Hôte créé ou retrouvé à l'enrôlement, par équipe : moteur Docker pour un agent conteneur, machine-id pour un agent hôte, chacun se rabattant sur l'autre puis sur le nom d'hôte. Un ré-enrôlement (volume perdu) crée un nouvel agent sur le même hôte. Un hôte se supprime quand tous ses agents sont révoqués (il emporte ces agents et leurs ordres).
-25. Modes acceptés : `host` et `container` (portées `compose`, `labeled`, `host`). `embedded` et `ecs` répondent `invalid_payload`.
+25. Modes acceptés : `host`, `container` (portées `compose`, `labeled`, `host`) et `embedded` (sans portée) ; `ecs` répond `invalid_payload`. Un agent `embedded` est son propre hôte (identité : l'empreinte de sa clé, une réplique = un agent = un hôte), lit son système de fichiers (paquets OS, dont rpm par les lecteurs de bases sans commande, runtimes de la liste fixe, applications des racines de découverte et de `/app`, `/usr/src/app`), n'envoie que ses sujets `host` et `path` (sinon `scope_violation`) et refuse `UPGRADE_AGENT` (il suit l'image).
 26. Un environnement par défaut d'un jeton utilisable ne peut pas être supprimé. Une équipe supprimée emporte sa flotte (ordres, agents, hôtes, jetons) dans la même transaction ; ses agents reçoivent ensuite `unknown_agent` et s'arrêtent.
 
 **Agents et protocole**
@@ -645,7 +645,7 @@ secrets:
 - volume d'état sur l'instance (`/var/lib/depverify-agent`) ;
 - en autoscaling, utiliser un **jeton d'enrôlement réutilisable** (voir §6).
 
-#### 3. Agent embarqué dans l'image de l'application (`embedded`, secours, hors MVP)
+#### 3. Agent embarqué dans l'image de l'application (`embedded`, secours)
 
 Possible quand on ne peut ni installer sur l'hôte, ni accéder au socket Docker (hébergeur restrictif, PaaS…) :
 
@@ -995,7 +995,6 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 
 - **API publique complète** (lecture + écriture) avec jetons d'API, en même temps que les sources CI et Git. Les permissions `apitoken.manage` et les règles des jetons (§7bis) sont déjà prévues dans le modèle.
 - **Collecteur ECS Fargate** (mode `ecs`, §6bis), avec accès aux registres privés (ECR, puis GHCR, GitLab…), puis autres plateformes managées.
-- Mode `embedded` (agent dans l'image de l'application).
 - **Mode hors ligne (air-gap), envisagé pour la V1** : miroir ou import manuel des bases OSV, endoflife.date, KEV et EPSS, pour une instance sans accès Internet. L'import manuel des releases de l'agent existe déjà.
 - **Autres sources d'inventaire** (prioritaires après le MVP) : API GitHub/GitLab (lecture seule), envoi de SBOM depuis la CI, upload manuel de fichiers. Le modèle `InventorySource` les prévoit dès le départ (§5, §5bis).
 - Écosystèmes : Python, Ruby, Java, Go ; Kubernetes (DaemonSet) ; hébergement mutualisé (agent one-shot en cron utilisateur).

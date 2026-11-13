@@ -35,6 +35,10 @@
     {
       "if": { "properties": { "scope": { "enum": ["compose", "labeled"] } }, "required": ["scope"] },
       "then": { "required": ["compose_project"] }
+    },
+    {
+      "if": { "properties": { "mode": { "const": "embedded" } }, "required": ["mode"] },
+      "then": { "not": { "anyOf": [{ "required": ["scope"] }, { "required": ["compose_project"] }] } }
     }
   ]
 }

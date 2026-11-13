@@ -90,6 +90,7 @@ def mutated(stem: str, change):
 negatives = [
     ('enrollment-request', 'container mode without scope', mutated('enrollment-request', lambda m: m.pop('scope'))),
     ('enrollment-request', 'compose scope without compose_project', mutated('enrollment-request', lambda m: m.pop('compose_project'))),
+    ('enrollment-request', 'embedded mode with a scope', mutated('enrollment-request', lambda m: m.update(mode='embedded'))),
     ('enrollment-request', 'public key that is not ed25519', mutated('enrollment-request', lambda m: m.update(public_key='rsa:AAAA'))),
     ('poll-request', 'rejected order result without reason', mutated('poll-request', lambda m: m['order_results'][1].pop('reason'))),
     ('poll-response', 'orders while pending', mutated('poll-response', lambda m: m.update(status='pending'))),

@@ -15,4 +15,4 @@ Work set aside, to pick up later. Each item points to its decisions in `cadrage.
 
 ## Agent
 
-- Modes `embedded` and `ecs`.
+- Mode `ecs` (Fargate collector, its own plan).
