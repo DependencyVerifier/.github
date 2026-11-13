@@ -185,6 +185,23 @@ Dashboards par équipe, projet, environnement et hôte, et liste filtrée des Fi
 56. Graphiques Chart.js via `symfony/ux-chartjs`, coloriés depuis le thème au moment du rendu (aucun attribut `style`, la CSP reste stricte). Les chiffres sont toujours écrits à côté : le graphique illustre, il ne porte pas l'information seul.
 57. Pages : section **Findings** de l'équipe et du projet (dashboard, puis liste filtrable par type, sévérité, statut, projet ou environnement, filtres dans l'URL) ; **page d'un environnement** (dashboard, applications, Findings) ; frames de synthèse sur les vues d'ensemble de l'équipe et du projet et sur la page hôte. Un `TEAM_GUEST` voit les Findings de ses projets, jamais ceux du parc.
 
+### Décisions du step 6 de la console : notifications (13/11/2026)
+
+Email et webhook signé, règles par projet et par parc, digests, agents muets, acceptations qui expirent, destinataires « notification seule ». Slack, Teams, Discord et la création de tickets viennent plus tard. Le détail est dans le plan du step.
+
+**Événements et envoi**
+58. Notification ne lit jamais les tables des autres contextes : Exposure publie `FindingChanged` (ouvert, rouvert, corrigé, fin de vie qui se rapproche, avec la date de l'occurrence), Fleet `AgentAwaitingApproval` ; les détails passent par les contrats `GetFindingDigests`, `ListSilentAgents`, `ListExpiringAcceptances`, `FilterRecipients`. Un Finding dont le risque est accepté reste silencieux.
+59. **Outbox** : une `Notice` par règle et par occurrence (index unique), avec un instantané de ce qu'elle dit ; une `Delivery` par destinataire (index unique). Un événement traité deux fois n'est dit qu'une fois. Les essais d'une livraison immédiate sont comptés par l'entité (1, 5, 25 puis 125 minutes, échec au 5ᵉ), jamais par Messenger : un essai raté n'est pas annulé par un rollback. File Messenger `notifications`.
+60. **Règle** : un projet (éventuellement un seul environnement) ou le **parc** de l'équipe (hôtes, applications non rattachées, agents). Événements : vulnérabilité trouvée ou corrigée, fin de vie, version en retard, agent muet, agent à approuver, acceptation qui expire ; les agents ne concernent que le parc. Seuils réservés aux vulnérabilités, tous exigés : sévérité, CVSS, EPSS minimaux, KEV seulement. Silence d'un agent réglable (24 h par défaut). Un projet peut n'avoir aucune règle.
+61. **Destinataires** : les webhooks de la règle (toujours immédiats) et, si elle le dit, les abonnés de son périmètre par email, chacun à sa fréquence (immédiat, digest quotidien, digest hebdomadaire le lundi, ou rien). Au moment de l'envoi, on vérifie encore que le destinataire est actif, toujours abonné et voit toujours le périmètre (ses memberships, jamais son statut de super admin) ; sinon la livraison est abandonnée.
+62. **Webhook** : URL HTTPS sans identifiants, secret HMAC chiffré (`SecretBox`, lié au webhook) et montré une seule fois, `POST` d'un JSON versionné signé `sha256=HMAC(secret, timestamp.body)` (`docs/webhook.md`). Jamais de redirection suivie ni de réseau privé (`NoPrivateNetworkHttpClient`, levé en dev par `NOTIFICATION_WEBHOOK_ALLOW_PRIVATE=1`). Le dernier appel (succès ou erreur courte) est affiché ; bouton « Tester ».
+63. **Email** : envoyé directement par le worker ; lien de désinscription signé (`UriSigner`, sans connexion), en-têtes RFC 8058 ; un `GET` ne fait que demander, le `POST` coupe l'abonnement.
+64. Planification : `make notifications-check` toutes les 5 minutes (agents muets une fois par période de silence, acceptations qui expirent sous 7 jours une fois, relance des livraisons dues) et `make notifications-digest` chaque jour à 07:00.
+
+**Comptes « notification seule » (décision 16)**
+65. Un gestionnaire (`project.notifications.manage`) ajoute une **adresse** : il ne crée qu'une invitation dans Notification (lien haché de 7 jours), **sans compte ni membership**, avec la même réponse quelle que soit l'adresse (ni accaparement d'adresse, ni énumération des comptes). À la confirmation (un `POST` sur le lien, preuve de possession de la boîte) : Identity crée ou réutilise le compte « notification seule » ; Organization l'admet `PROJECT_VIEWER` (et `TEAM_GUEST`) au nom du gestionnaire, s'il a toujours la permission. Une adresse d'un compte qui se connecte n'est jamais rattachée ainsi : abonnée si elle voit déjà le projet, sinon l'invitation est déclinée (à inviter au projet). Quota `maxNotificationOnlyAccounts` : adresses invitées et comptes rattachés, chacun une fois.
+66. Un compte « notification seule » est **promu** en compte complet en acceptant une invitation (il choisit son mot de passe) ou en devenant premier `TEAM_ADMIN` (lien de création), sans perdre ses memberships.
+
 ## 4. Architecture d'ensemble
 
 ```
