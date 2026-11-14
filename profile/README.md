@@ -11,4 +11,4 @@ DependencyVerifier is an open source, self-hosted monitor of the dependencies an
 | [agent-image](https://github.com/DependencyVerifier/agent-image) | Container image `ghcr.io/dependencyverifier/agent` | Apache-2.0 |
 | [.github](https://github.com/DependencyVerifier/.github) | Specification, UI charter, brand assets | — |
 
-> Status: early development, nothing usable yet.
+> Status: 1.0. Getting started: [rolling out DependencyVerifier on your fleet](https://github.com/DependencyVerifier/console/blob/main/GUIDE.md).
