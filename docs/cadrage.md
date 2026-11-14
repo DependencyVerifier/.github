@@ -734,7 +734,7 @@ Le même principe « liste de ce qui tourne + analyse de l'image par digest » s
   - pas d'inscription libre : création de compte **sur invitation uniquement**. Pas de connexion via un fournisseur tiers (GitHub…) au MVP ;
   - sessions courtes, cookies `HttpOnly` / `Secure` / `SameSite=Strict` ;
   - *(post-MVP, avec l'API publique)* jetons d'API avec droits limités et expiration, transmis via l'en-tête `Authorization`, jamais dans l'URL.
-- **Souveraineté** : aucune télémétrie. Les seuls flux sortants de la console sont les **téléchargements** des bases publiques, qui peuvent être désactivés ou, à partir de la V1, passer par un miroir (mode air-gap). L'interface ne charge **aucune ressource externe** (polices, scripts, CDN) : tout est servi par l'instance.
+- **Souveraineté** : aucune télémétrie. Les seuls flux sortants de la console sont les **téléchargements** des bases publiques, qui peuvent être désactivés ou, après la V1, passer par un miroir (mode air-gap). L'interface ne charge **aucune ressource externe** (polices, scripts, CDN) : tout est servi par l'instance.
 
 ## 7bis. Gestion des droits
 
@@ -996,7 +996,7 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 
 - **API publique complète** (lecture + écriture) avec jetons d'API, en même temps que les sources CI et Git. Les permissions `apitoken.manage` et les règles des jetons (§7bis) sont déjà prévues dans le modèle.
 - **Collecteur ECS Fargate** (mode `ecs`, §6bis), avec accès aux registres privés (ECR, puis GHCR, GitLab…), puis autres plateformes managées.
-- **Mode hors ligne (air-gap), envisagé pour la V1** : miroir ou import manuel des bases OSV, endoflife.date, KEV et EPSS, pour une instance sans accès Internet. L'import manuel des releases de l'agent existe déjà.
+- **Mode hors ligne (air-gap), après la V1** (décidé le 14/11/2026) : miroir ou import manuel des bases OSV, endoflife.date, KEV et EPSS, pour une instance sans accès Internet. L'import manuel des releases de l'agent existe déjà.
 - **Autres sources d'inventaire** (prioritaires après le MVP) : API GitHub/GitLab (lecture seule), envoi de SBOM depuis la CI, upload manuel de fichiers. Le modèle `InventorySource` les prévoit dès le départ (§5, §5bis).
 - Écosystèmes : Python, Ruby, Java, Go ; Kubernetes (DaemonSet) ; hébergement mutualisé (agent one-shot en cron utilisateur).
 - SSO OIDC.
@@ -1008,4 +1008,4 @@ Aucun changement de modèle de données ni de protocole agent n'est nécessaire.
 ## 12. Questions ouvertes
 
 - **Bibliothèque WebAuthn** : tranché, `web-auth/webauthn-lib` (décision 82).
-- **Bibliothèque WebAuthn** : à choisir à l'implémentation de l'authentification (support natif Symfony s'il existe à ce moment-là, sinon `web-auth/webauthn-framework`).
+- Marque (après la V1, décidé le 14/11/2026) : vérification de « DependencyVerifier » à l'INPI et à l'EUIPO (classes 9 et 42). Le nom est descriptif, donc difficile à protéger, et proche de la *dependency verification* de Gradle. L'organisation GitHub `DependencyVerifier` existe depuis le 08/11/2026.
