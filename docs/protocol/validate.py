@@ -103,6 +103,8 @@ negatives = [
     ('inventory-manifest', 'host_facts referencing an SBOM media type', mutated('inventory-manifest', lambda m: m['host_facts'].update(media_type='application/vnd.cyclonedx+json;version=1.6'))),
     ('inventory-manifest', 'relative declared path', mutated('inventory-manifest', lambda m: m['subjects'][3].update(path='opt/legacy-app'))),
     ('host-facts', 'timestamp in host facts', mutated('host-facts', lambda m: m.update(collected_at='2026-11-09T08:01:10Z'))),
+    ('host-facts', 'runtime of an unknown version manager', mutated('host-facts', lambda m: m['runtimes'][1].update(manager='brew'))),
+    ('host-facts', 'JDK implementor outside the allow-list', mutated('host-facts', lambda m: m['runtimes'][2].update(implementor='<script>'))),
     ('problem', 'clock_skew without server_time', mutated('problem-clock-skew', lambda m: m.pop('server_time'))),
     ('problem', 'missing_snapshots without missing', mutated('problem-missing-snapshots', lambda m: m.pop('missing'))),
     ('problem', 'type outside the urn:depverify:problem namespace', mutated('problem-clock-skew', lambda m: m.update(type='about:blank'))),

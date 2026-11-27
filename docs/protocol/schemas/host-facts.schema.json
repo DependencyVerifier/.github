@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:depverify:protocol:v1:host-facts",
   "title": "Host facts snapshot, media type application/vnd.depverify.host-facts+json;version=1 (protocol.md §8.1)",
-  "description": "Deterministic: no collection timestamp, arrays sorted (runtimes by name then path).",
+  "description": "Deterministic: no collection timestamp, arrays sorted (runtimes by name then path). Adding values to a closed list (runtime names, version managers) stays format_version 1: a consumer ignores the runtimes and managers it does not know.",
   "type": "object",
   "required": ["format_version", "hostname", "os", "kernel", "arch", "runtimes", "docker", "agent"],
   "additionalProperties": false,
@@ -20,11 +20,17 @@
         "required": ["name", "version", "path"],
         "additionalProperties": false,
         "properties": {
-          "name": { "enum": ["php", "php-fpm", "composer", "node", "npm", "yarn", "pnpm"] },
-          "version": { "type": "string" },
+          "name": { "enum": ["php", "php-fpm", "composer", "node", "npm", "yarn", "pnpm", "python", "go", "ruby", "java", "rust"] },
+          "version": { "type": "string", "description": "Not constrained: a version read from a command of a system directory is reported as printed. Untrusted data for the console." },
           "path": { "$ref": "urn:depverify:protocol:v1:common#/$defs/absolutePath" },
           "extensions": { "type": "array", "items": { "type": "string" }, "description": "PHP only: loaded extensions, sorted." },
-          "service": { "type": "string", "description": "php-fpm pool / systemd unit, e.g. php8.2-fpm." }
+          "service": { "type": "string", "description": "php-fpm pool / systemd unit, e.g. php8.2-fpm." },
+          "manager": {
+            "description": "Version manager that installed the runtime (never a package manager), read from its files, never run. Absent for a system install.",
+            "enum": ["asdf", "chruby", "fnm", "go-dl", "goenv", "gvm", "mise", "n", "nvm", "phpbrew", "phpenv", "pyenv", "rbenv", "rustup", "rvm", "sdkman", "uv", "volta"]
+          },
+          "implementor": { "type": "string", "pattern": "^[A-Za-z0-9 .,\\-_()]{1,64}$", "description": "Java only: IMPLEMENTOR of the JDK release file, e.g. Eclipse Adoptium." },
+          "build_type": { "type": "string", "pattern": "^[A-Za-z0-9 .,\\-_()]{1,64}$", "description": "Java only: BUILD_TYPE of an Oracle JDK release file, e.g. commercial." }
         }
       }
     },
